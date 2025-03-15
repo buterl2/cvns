@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV / NS Planning Board</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CV / NS Planning Board</h1>
+        </header>
+        
+        <main>
+            <section class="staff-pool">
+                <h2>Available Operators</h2>
+                <div class="staff-container" id="available-staff">
+                    <!-- Operators will be added here dynamically or manually -->
+                    <!-- Example staff member -->
+                    <div class="staff-card" draggable="true" data-id="staff1">
+                        <div class="staff-photo">
+                            <img src="placeholder-photo.jpg" alt="Staff Member">
+                        </div>
+                        <div class="staff-info">
+                            <p class="staff-name">John Doe</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Example staff member -->
+                    <div class="staff-card" draggable="true" data-id="staff2">
+                        <div class="staff-photo">
+                            <img src="placeholder-photo.jpg" alt="Staff Member">
+                        </div>
+                        <div class="staff-info">
+                            <p class="staff-name">Jane Smith</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="planning-board">
+                <div class="floor">
+                    <h2>Long Goods</h2>
+                    <div class="positions-container">
+                        <div class="position-slot" data-position="long-goods-1">
+                            <h3>Picking</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="long-goods-2">
+                            <h3>Packing</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="long-goods-3">
+                            <h3>VAS / HAZMAT</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="long-goods-4">
+                            <h3>I-Point</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="long-goods-5">
+                            <h3>EM7 / BCP</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="long-goods-6">
+                            <h3>100% Check</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="long-goods-7">
+                            <h3>Training</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floor">
+                    <h2>Small Goods</h2>
+                    <div class="positions-container">
+                        <div class="position-slot" data-position="small-goods-1">
+                            <h3>Picking</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="small-goods-2">
+                            <h3>Packing</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="small-goods-3">
+                            <h3>VAS / HAZMAT</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="small-goods-4">
+                            <h3>I-Point</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="small-goods-5">
+                            <h3>EM7 / BCP</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="small-goods-6">
+                            <h3>100% Check</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="small-goods-7">
+                            <h3>Training</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floor">
+                    <h2>Surgical Tech</h2>
+                    <div class="positions-container">
+                        <div class="position-slot" data-position="surgical-tech-1">
+                            <h3>Picking</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="surgical-tech-2">
+                            <h3>Packing</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="surgical-tech-3">
+                            <h3>VAS / HAZMAT</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="surgical-tech-4">
+                            <h3>I-Point</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="surgical-tech-5">
+                            <h3>EM7 / BCP</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="surgical-tech-6">
+                            <h3>100% Check</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="surgical-tech-7">
+                            <h3>Training</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floor support">
+                    <h2>Support Competences</h2>
+                    <div class="positions-container">
+                        <div class="position-slot" data-position="support-1">
+                            <h3>Lean</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-2">
+                            <h3>100% Check</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-3">
+                            <h3>X4 / X5</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-4">
+                            <h3>EM-7 / BCP</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-5">
+                            <h3>Reach Picking</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-6">
+                            <h3>SH</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-7">
+                            <h3>Maintenance</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-8">
+                            <h3>AORTIC</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-9">
+                            <h3>Consolidation</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="support-10">
+                            <h3>Waterspider</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floor others">
+                    <h2>Others</h2>
+                    <div class="positions-container">
+                        <div class="position-slot" data-position="others-1">
+                            <h3>Not Planned</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="others-2">
+                            <h3>Holiday</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="others-3">
+                            <h3>Sick</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                        <div class="position-slot" data-position="others-4">
+                            <h3>Support</h3>
+                            <div class="staff-dropzone"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <div class="controls">
+                <button id="add-staff">Add New Staff</button>
+                <button id="save-board">Save Board</button>
+                <button id="reset-board">Reset Board</button>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Add staff modal (hidden by default) -->
+    <div id="add-staff-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Add New Staff Member</h2>
+            <form id="new-staff-form">
+                <div class="form-group">
+                    <label for="staff-name">Name:</label>
+                    <input type="text" id="staff-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="staff-photo">Photo:</label>
+                    <input type="file" id="staff-photo" accept="image/*">
+                </div>
+                <button type="submit">Add Staff</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

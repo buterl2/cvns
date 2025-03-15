@@ -1,0 +1,368 @@
+/* Basic reset and global styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    color: #fff;
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('images/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+.container {
+    width: 98%;
+    margin: 0 auto;
+    padding: 15px;
+    min-height: 100vh;
+}
+
+/* Header styles */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    color: white;
+    border-radius: 5px;
+}
+
+h1 {
+    margin-bottom: 15px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+h2, h3 {
+    margin-bottom: 15px;
+}
+
+/* Main layout */
+main {
+    display: flex;
+    gap: 30px;
+}
+
+/* Staff pool section */
+.staff-pool {
+    flex: 0 0 300px;
+    background-color: rgba(15, 12, 39, 0.85);
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    max-width: 300px;
+    overflow-y: auto;
+    max-height: 80vh;
+    position: sticky;
+    top: 20px;
+}
+
+.staff-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Staff card styles */
+.staff-card {
+    display: flex;
+    align-items: center;
+    background-color: rgba(30, 25, 70, 0.9);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    cursor: move;
+    transition: box-shadow 0.3s ease;
+}
+
+.staff-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    background-color: rgba(40, 35, 90, 0.9);
+}
+
+.staff-photo {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 15px;
+    border: 2px solid #1a3a5f;
+}
+
+.staff-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.staff-info {
+    flex-grow: 1;
+}
+
+.staff-name {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Planning board section */
+.planning-board {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Floor styles */
+.floor {
+    background-color: rgba(15, 12, 39, 0.75);
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    margin-bottom: 20px;
+}
+
+.floor h2 {
+    color: #4aa5ff;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(74, 165, 255, 0.3);
+    font-weight: bold;
+}
+
+/* Position slots */
+.positions-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.position-slot {
+    flex: 1 1 calc(20% - 15px); /* 20% width minus gap to fit 5 per row */
+    min-width: 150px;
+    background-color: rgba(25, 20, 60, 0.8);
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 1200px) {
+    .position-slot {
+        flex: 1 1 calc(25% - 15px); /* 4 per row on medium screens */
+    }
+}
+
+@media (max-width: 900px) {
+    .position-slot {
+        flex: 1 1 calc(33.333% - 15px); /* 3 per row on smaller screens */
+    }
+}
+
+@media (max-width: 600px) {
+    .position-slot {
+        flex: 1 1 calc(50% - 15px); /* 2 per row on mobile */
+    }
+}
+
+.position-slot h3 {
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.position-slot h3 {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+/* Dropzone styling */
+.staff-dropzone {
+    min-height: 80px;
+    border: 2px dashed #4a5d7a;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+    flex-direction: column;
+}
+
+.staff-dropzone.highlight {
+    background-color: rgba(74, 165, 255, 0.2);
+    border-color: #4aa5ff;
+}
+
+/* Style for staff card when placed in a position */
+.staff-dropzone .staff-card {
+    margin: 5px 0;
+    width: 100%;
+}
+
+/* Footer styles */
+footer {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+/* Button styles */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #4a5d7a;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #6a7d9a;
+}
+
+button#reset-board {
+    background-color: #8c2c2c;
+}
+
+button#reset-board:hover {
+    background-color: #b13a3a;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    background-color: #0f0c27;
+    margin: 10% auto;
+    padding: 30px;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    max-width: 500px;
+    position: relative;
+    color: #fff;
+}
+
+.close-button {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    color: #aaa;
+}
+
+.close-button:hover {
+    color: #fff;
+}
+
+/* Form styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #ddd;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #2a2a40;
+    background-color: #151530;
+    color: #fff;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+input[type="text"]:focus {
+    border-color: #4aa5ff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(74, 165, 255, 0.3);
+}
+
+/* Special styles for the support section */
+.floor.support {
+    background-color: rgba(20, 20, 50, 0.75);
+}
+
+.floor.support h2 {
+    color: #6abaff;
+}
+
+/* Styles for the others section */
+.floor.others {
+    background-color: rgba(25, 18, 45, 0.75);
+}
+
+.floor.others h2 {
+    color: #ff884a;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    main {
+        flex-direction: column;
+    }
+    
+    .staff-pool {
+        max-width: 100%;
+        max-height: 300px;
+    }
+    
+    .staff-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .staff-card {
+        flex: 1;
+        min-width: 200px;
+    }
+}
+
+/* Drag-and-drop specific styles */
+.dragging {
+    opacity: 0.5;
+}
+
+/* Style for staff card when placed in a position */
+.staff-dropzone .staff-card {
+    margin: 0;
+    width: 100%;
+}
+
+/* Animation for dropping */
+@keyframes drop-animation {
+    0% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.dropped {
+    animation: drop-animation 0.3s ease;
+}
