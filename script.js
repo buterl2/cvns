@@ -17,11 +17,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Sample staff members (can be removed in production)
     const sampleStaff = [
-        { id: 'sample1', name: 'John Doe', photo: 'placeholder-photo.jpg' },
-        { id: 'sample2', name: 'Jane Smith', photo: 'placeholder-photo.jpg' },
-        { id: 'sample3', name: 'Mike Johnson', photo: 'placeholder-photo.jpg' },
-        { id: 'sample4', name: 'Sarah Williams', photo: 'placeholder-photo.jpg' },
-        { id: 'sample5', name: 'David Brown', photo: 'placeholder-photo.jpg' }
+        { id: 'sample1', name: 'Mihail', photo: 'placeholder-photo.jpg' },
+        { id: 'sample2', name: 'Rene', photo: 'placeholder-photo.jpg' },
+        { id: 'sample3', name: 'Victor', photo: 'placeholder-photo.jpg' },
+        { id: 'sample4', name: 'Marian', photo: 'placeholder-photo.jpg' },
+        { id: 'sample5', name: 'Ciomu', photo: 'placeholder-photo.jpg' }
     ];
     
     // Initialize
