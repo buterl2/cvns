@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
-    const staffPool = document.getElementById('available-staff');
+    const availableStaffContainer = document.getElementById('available-staff');
+    const staffPool = document.querySelector('.staff-pool');
     const addStaffButton = document.getElementById('add-staff');
     const removeStaffButton = document.getElementById('remove-staff');
     const saveButton = document.getElementById('save-board');
@@ -10,6 +11,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const newStaffForm = document.getElementById('new-staff-form');
     const allDropZones = document.querySelectorAll('.staff-dropzone');
     const floorToggles = document.querySelectorAll('.floor-toggle');
+    
+    // Add Support button
+    const addSupportButton = document.createElement('button');
+    addSupportButton.id = 'add-support';
+    addSupportButton.textContent = 'Add Support';
+    document.querySelector('.controls').appendChild(addSupportButton);
     
     // Track removal mode
     let removalMode = false;
@@ -33,6 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     init();
     
     function init() {
+        // Clear existing staff cards to avoid duplicates
+        availableStaffContainer.innerHTML = '';
+        
         // Load data from local storage or use sample data
         const savedData = loadFromLocalStorage();
         
@@ -54,6 +64,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add staff button
         addStaffButton.addEventListener('click', () => {
             modal.style.display = 'block';
+        });
+        
+        // Add support button
+        addSupportButton.addEventListener('click', () => {
+            const supportName = prompt('Enter support name:');
+            if (supportName && supportName.trim() !== '') {
+                const staffId = 'support-' + staffIdCounter++;
+                const photoSrc = createPlaceholderImage();
+                createStaffCard(staffId, supportName.trim(), photoSrc);
+                saveToLocalStorage();
+            }
         });
         
         // Remove staff button
@@ -83,21 +104,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set up drag and drop
         setupDragAndDrop();
         
-        // Floor toggle buttons
+        // Floor toggle buttons - Fix the toggle functionality
         floorToggles.forEach(toggle => {
-            toggle.addEventListener('click', toggleFloor);
+            toggle.addEventListener('click', function(e) {
+                // Get the parent floor div
+                const floor = this.closest('.floor');
+                
+                // Toggle the collapsed class
+                floor.classList.toggle('collapsed');
+                
+                // Update the toggle button text
+                this.textContent = floor.classList.contains('collapsed') ? '+' : '−';
+                
+                // Stop event propagation to prevent affecting other floors
+                e.stopPropagation();
+            });
         });
-    }
-    
-    function toggleFloor(e) {
-        const floor = e.target.closest('.floor');
-        floor.classList.toggle('collapsed');
-        
-        if (floor.classList.contains('collapsed')) {
-            e.target.textContent = '+';
-        } else {
-            e.target.textContent = '−';
-        }
     }
     
     function toggleRemovalMode() {
@@ -129,12 +151,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function removeStaffCard(e) {
         if (removalMode) {
             const card = e.currentTarget;
-            const confirmRemoval = confirm(`Are you sure you want to remove ${card.querySelector('.staff-name').textContent}?`);
-            
-            if (confirmRemoval) {
-                card.remove();
-                saveToLocalStorage();
-            }
+            card.remove();
+            saveToLocalStorage();
         }
     }
     
@@ -162,8 +180,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Create a placeholder image with MDT text
+    function createPlaceholderImage() {
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+        canvas.width = 100;
+        canvas.height = 100;
+        
+        // Get the context
+        const ctx = canvas.getContext('2d');
+        
+        // Draw blue circle
+        ctx.fillStyle = '#0057B8'; // Medtronic blue
+        ctx.beginPath();
+        ctx.arc(50, 50, 50, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add MDT text
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('MDT', 50, 50);
+        
+        // Convert to data URL
+        return canvas.toDataURL('image/png');
+    }
+    
     function finishAddingStaff(name, photoSrc) {
         const staffId = 'staff-' + staffIdCounter++;
+        
+        // If photoSrc is the default placeholder, replace with our custom one
+        if (photoSrc === 'placeholder-photo.jpg') {
+            photoSrc = createPlaceholderImage();
+        }
+        
         createStaffCard(staffId, name, photoSrc);
         
         // Reset form and close modal
@@ -176,6 +227,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function createStaffCard(id, name, photoSrc) {
+        // If photoSrc is the default placeholder, replace with our custom one
+        if (photoSrc === 'placeholder-photo.jpg') {
+            photoSrc = createPlaceholderImage();
+        }
+        
         const staffCard = document.createElement('div');
         staffCard.className = 'staff-card';
         staffCard.setAttribute('draggable', 'true');
@@ -191,33 +247,21 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         // Add to staff pool
-        staffPool.appendChild(staffCard);
+        availableStaffContainer.appendChild(staffCard);
         
         // Set up drag events for the new card
         setupDragEventsForElement(staffCard);
+        
+        // Register for removal if in removal mode
+        if (removalMode) {
+            registerForRemoval(staffCard);
+        }
     }
     
-    function setupDragAndDrop() {
-        // Set up drag events for all existing staff cards
-        document.querySelectorAll('.staff-card').forEach(card => {
-            setupDragEventsForElement(card);
-        });
-        
-        // Set up drop events for all dropzones
-        allDropZones.forEach(zone => {
-            setupDropZone(zone);
-        });
-        
-        // Make staff pool a valid dropzone
-        setupStaffPoolAsDropZone();
-        
-        // Initialize heights for all rows
-        document.querySelectorAll('.positions-container').forEach(container => {
-            const firstDropzone = container.querySelector('.staff-dropzone');
-            if (firstDropzone) {
-                equalizeHeightsInRow(firstDropzone);
-            }
-        });
+    // Register a staff card for removal mode if it's active
+    function registerForRemoval(card) {
+        card.classList.add('removable');
+        card.addEventListener('click', removeStaffCard);
     }
     
     function setupDragEventsForElement(element) {
@@ -285,63 +329,82 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Make staff pool a valid dropzone for returning operators
     function setupStaffPoolAsDropZone() {
-        staffPool.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            staffPool.classList.add('highlight');
-        });
-        
-        staffPool.addEventListener('dragleave', () => {
-            staffPool.classList.remove('highlight');
-        });
-        
-        staffPool.addEventListener('drop', (e) => {
-            e.preventDefault();
-            staffPool.classList.remove('highlight');
+        // Make both the container and section droppable
+        [staffPool, availableStaffContainer].forEach(element => {
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                staffPool.classList.add('highlight');
+            });
             
-            const staffId = e.dataTransfer.getData('text/plain');
-            const staffCard = document.querySelector(`[data-id="${staffId}"]`);
+            element.addEventListener('dragleave', () => {
+                staffPool.classList.remove('highlight');
+            });
             
-            if (staffCard) {
-                // Only allow dropping back to pool if from a position
-                const fromPosition = staffCard.closest('.staff-dropzone');
-                if (fromPosition) {
-                    // Remove from position
-                    staffCard.parentNode.removeChild(staffCard);
-                    
-                    // Add back to staff pool
-                    staffPool.appendChild(staffCard);
-                    
-                    // Equalize heights in the original row
-                    equalizeHeightsInRow(fromPosition);
-                    
-                    // Save board state
-                    saveToLocalStorage();
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                staffPool.classList.remove('highlight');
+                
+                const staffId = e.dataTransfer.getData('text/plain');
+                const staffCard = document.querySelector(`[data-id="${staffId}"]`);
+                
+                if (staffCard) {
+                    // Only proceed if the card is from a position
+                    const fromPosition = staffCard.closest('.staff-dropzone');
+                    if (fromPosition) {
+                        // Remove from position
+                        staffCard.parentNode.removeChild(staffCard);
+                        
+                        // Add back to staff pool container
+                        availableStaffContainer.appendChild(staffCard);
+                        
+                        // Equalize heights in the original row
+                        equalizeHeightsInRow(fromPosition);
+                        
+                        // Save board state
+                        saveToLocalStorage();
+                    }
                 }
-            }
+            });
         });
     }
     
+    // MODIFIED: Only equalize heights of positions in the same visual row
     function equalizeHeightsInRow(zone) {
-        // Find the row this zone belongs to
+        // Find the position slot this zone belongs to
         const positionSlot = zone.closest('.position-slot');
-        const row = positionSlot.parentElement;
+        if (!positionSlot) return;
         
-        // Get all dropzones in this row
-        const dropzonesInRow = Array.from(row.querySelectorAll('.staff-dropzone'));
+        const container = positionSlot.parentElement;
+        const allPositionSlots = Array.from(container.querySelectorAll('.position-slot'));
+        
+        // Get the vertical position of this slot
+        const rect = positionSlot.getBoundingClientRect();
+        const thisTop = rect.top;
+        
+        // Find all slots in the same visual row (with the same or very close top position)
+        const tolerance = 10; // 10px tolerance for slight misalignments
+        const sameRowSlots = allPositionSlots.filter(slot => {
+            const slotRect = slot.getBoundingClientRect();
+            return Math.abs(slotRect.top - thisTop) <= tolerance;
+        });
+        
+        // Get dropzones in these slots
+        const dropzonesInRow = sameRowSlots.map(slot => slot.querySelector('.staff-dropzone'));
         
         // Reset heights first
         dropzonesInRow.forEach(dz => {
-            dz.style.height = 'auto';
+            if (dz) dz.style.height = 'auto';
         });
         
         // Wait for the DOM to update
         setTimeout(() => {
             // Find the tallest dropzone
-            const maxHeight = Math.max(...dropzonesInRow.map(dz => dz.offsetHeight));
+            const heights = dropzonesInRow.map(dz => dz ? dz.offsetHeight : 0);
+            const maxHeight = Math.max(...heights);
             
             // Set all dropzones to the tallest height
             dropzonesInRow.forEach(dz => {
-                dz.style.height = maxHeight + 'px';
+                if (dz) dz.style.height = maxHeight + 'px';
             });
         }, 10);
     }
@@ -353,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // Save all staff in the pool
-        staffPool.querySelectorAll('.staff-card').forEach(card => {
+        availableStaffContainer.querySelectorAll('.staff-card').forEach(card => {
             const id = card.getAttribute('data-id');
             const name = card.querySelector('.staff-name').textContent;
             const photoSrc = card.querySelector('img').src;
@@ -367,7 +430,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Save all assigned positions
         allDropZones.forEach(zone => {
-            const positionId = zone.closest('.position-slot').getAttribute('data-position');
+            const positionSlot = zone.closest('.position-slot');
+            if (!positionSlot) return;
+            
+            const positionId = positionSlot.getAttribute('data-position');
             const staffCards = zone.querySelectorAll('.staff-card');
             
             if (staffCards.length > 0) {
@@ -380,8 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Save to local storage
         localStorage.setItem(STORAGE_KEY, JSON.stringify(planningData));
         
-        // Notify user
-        alert('Planning board saved successfully!');
+        console.log('Board saved successfully');
     }
     
     function loadFromLocalStorage() {
@@ -391,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function populateFromSavedData(data) {
         // Clear existing staff
-        staffPool.innerHTML = '';
+        availableStaffContainer.innerHTML = '';
         
         // Add all staff to the pool
         data.staff.forEach(staff => {
@@ -440,43 +505,33 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetBoard() {
         // Move all staff cards back to the pool
         document.querySelectorAll('.staff-dropzone .staff-card').forEach(card => {
-            staffPool.appendChild(card);
+            availableStaffContainer.appendChild(card);
         });
         
         // Save the reset state
         saveToLocalStorage();
     }
     
-    // Register a new staff card for removal mode if it's active
-    function registerForRemoval(card) {
-        if (removalMode) {
-            card.classList.add('removable');
-            card.addEventListener('click', removeStaffCard);
-        }
-    }
-    
-    function createStaffCard(id, name, photoSrc) {
-        const staffCard = document.createElement('div');
-        staffCard.className = 'staff-card';
-        staffCard.setAttribute('draggable', 'true');
-        staffCard.setAttribute('data-id', id);
+    function setupDragAndDrop() {
+        // Set up drag events for all existing staff cards
+        document.querySelectorAll('.staff-card').forEach(card => {
+            setupDragEventsForElement(card);
+        });
         
-        staffCard.innerHTML = `
-            <div class="staff-photo">
-                <img src="${photoSrc}" alt="${name}">
-            </div>
-            <div class="staff-info">
-                <p class="staff-name">${name}</p>
-            </div>
-        `;
+        // Set up drop events for all dropzones
+        allDropZones.forEach(zone => {
+            setupDropZone(zone);
+        });
         
-        // Add to staff pool
-        staffPool.appendChild(staffCard);
+        // Make staff pool a valid dropzone
+        setupStaffPoolAsDropZone();
         
-        // Set up drag events for the new card
-        setupDragEventsForElement(staffCard);
-        
-        // Register for removal if in removal mode
-        registerForRemoval(staffCard);
+        // Initialize heights for all rows
+        document.querySelectorAll('.positions-container').forEach(container => {
+            const firstDropzone = container.querySelector('.staff-dropzone');
+            if (firstDropzone) {
+                equalizeHeightsInRow(firstDropzone);
+            }
+        });
     }
 });

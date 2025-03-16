@@ -66,6 +66,14 @@ main {
     gap: 30px;
 }
 
+/* Planning board section */
+.planning-board {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
 /* Staff pool section */
 .staff-pool {
     flex: 0 0 300px;
@@ -163,6 +171,7 @@ main {
 .floor-header h2 {
     margin-bottom: 0;
     font-weight: bold;
+    color: #4aa5ff;
 }
 
 .floor-toggle {
@@ -186,6 +195,7 @@ main {
     max-height: 2000px;
     overflow: hidden;
     opacity: 1;
+    margin-top: 15px;
 }
 
 .floor.collapsed .floor-content {
@@ -233,15 +243,10 @@ main {
     }
 }
 
+/* Change position title text color to white */
 .position-slot h3 {
     font-size: 16px;
     color: #fff;
-    margin-bottom: 10px;
-}
-
-.position-slot h3 {
-    font-size: 16px;
-    color: #555;
     margin-bottom: 10px;
 }
 
@@ -308,6 +313,14 @@ button#reset-board:hover {
 
 button#remove-staff.active {
     background-color: #8c2c2c;
+}
+
+button#add-support {
+    background-color: #2c8c56;
+}
+
+button#add-support:hover {
+    background-color: #3aaa6b;
 }
 
 .removal-mode .staff-card.removable {
