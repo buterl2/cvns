@@ -66,6 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up connection monitoring
         setupConnectionMonitoring();
+
+        normalizeDatabase();
+
+        availableStaffContainer.innerHTML = '';
         
         // Clear all containers to start fresh
         availableStaffContainer.innerHTML = '';
@@ -78,8 +82,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up drag and drop
         setupDragAndDrop();
-
-        normalizeDatabase();
         
         // Load initial data and set up realtime listeners
         loadInitialData();
@@ -179,90 +181,90 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Make sure our saveToFirebase function preserves positions
-function saveToFirebase() {
-    updateConnectionStatus('syncing', 'Saving...');
-    
-    // First get the current positions
-    planningBoardRef.child('positions').once('value')
-        .then(snapshot => {
-            const currentPositions = snapshot.exists() ? snapshot.val() : {};
-            
-            // Build the planning data
-            const planningData = {
-                timestamp: Date.now(),
-                staff: []
-            };
-            
-            // Save all staff in the pool
-            availableStaffContainer.querySelectorAll('.staff-card').forEach(card => {
-                const id = card.getAttribute('data-id');
-                const name = card.querySelector('.staff-name').textContent;
-                const photoSrc = card.querySelector('img').src;
+    function saveToFirebase() {
+        updateConnectionStatus('syncing', 'Saving...');
+        
+        // First get the current positions
+        planningBoardRef.child('positions').once('value')
+            .then(snapshot => {
+                const currentPositions = snapshot.exists() ? snapshot.val() : {};
                 
-                planningData.staff.push({
-                    id: id,
-                    name: name,
-                    photo: photoSrc
-                });
-            });
-            
-            // Add staff from positions
-            document.querySelectorAll('.staff-dropzone .staff-card').forEach(card => {
-                const id = card.getAttribute('data-id');
-                const name = card.querySelector('.staff-name').textContent;
-                const photoSrc = card.querySelector('img').src;
+                // Build the planning data
+                const planningData = {
+                    timestamp: Date.now(),
+                    staff: []
+                };
                 
-                // Only add if not already in the list
-                if (!planningData.staff.some(s => s.id === id)) {
+                // Save all staff in the pool
+                availableStaffContainer.querySelectorAll('.staff-card').forEach(card => {
+                    const id = card.getAttribute('data-id');
+                    const name = card.querySelector('.staff-name').textContent;
+                    const photoSrc = card.querySelector('img').src;
+                    
                     planningData.staff.push({
                         id: id,
                         name: name,
                         photo: photoSrc
                     });
-                }
-            });
-            
-            // Set new positions based on current DOM state
-            const newPositions = {};
-            allDropZones.forEach(zone => {
-                const positionSlot = zone.closest('.position-slot');
-                if (!positionSlot) return;
+                });
                 
-                const positionId = positionSlot.getAttribute('data-position');
-                const staffCards = zone.querySelectorAll('.staff-card');
+                // Add staff from positions
+                document.querySelectorAll('.staff-dropzone .staff-card').forEach(card => {
+                    const id = card.getAttribute('data-id');
+                    const name = card.querySelector('.staff-name').textContent;
+                    const photoSrc = card.querySelector('img').src;
+                    
+                    // Only add if not already in the list
+                    if (!planningData.staff.some(s => s.id === id)) {
+                        planningData.staff.push({
+                            id: id,
+                            name: name,
+                            photo: photoSrc
+                        });
+                    }
+                });
                 
-                if (staffCards.length > 0) {
-                    newPositions[positionId] = Array.from(staffCards).map(card => 
-                        card.getAttribute('data-id')
-                    );
-                } else {
-                    // Maintain empty arrays for empty positions
-                    newPositions[positionId] = [];
+                // Set new positions based on current DOM state
+                const newPositions = {};
+                allDropZones.forEach(zone => {
+                    const positionSlot = zone.closest('.position-slot');
+                    if (!positionSlot) return;
+                    
+                    const positionId = positionSlot.getAttribute('data-position');
+                    const staffCards = zone.querySelectorAll('.staff-card');
+                    
+                    if (staffCards.length > 0) {
+                        newPositions[positionId] = Array.from(staffCards).map(card => 
+                            card.getAttribute('data-id')
+                        );
+                    } else {
+                        // Maintain empty arrays for empty positions
+                        newPositions[positionId] = [];
+                    }
+                });
+                
+                // Preserve any positions not in the DOM
+                for (const positionId in currentPositions) {
+                    if (!newPositions.hasOwnProperty(positionId)) {
+                        newPositions[positionId] = currentPositions[positionId];
+                    }
                 }
+                
+                // Set the positions
+                planningData.positions = newPositions;
+                
+                // Save to Firebase
+                return planningBoardRef.set(planningData);
+            })
+            .then(() => {
+                console.log('Board saved successfully to Firebase');
+                updateConnectionStatus('online', 'Saved');
+            })
+            .catch(error => {
+                console.error('Error saving to Firebase:', error);
+                updateConnectionStatus('error', 'Save Error');
             });
-            
-            // Preserve any positions not in the DOM
-            for (const positionId in currentPositions) {
-                if (!newPositions.hasOwnProperty(positionId)) {
-                    newPositions[positionId] = currentPositions[positionId];
-                }
-            }
-            
-            // Set the positions
-            planningData.positions = newPositions;
-            
-            // Save to Firebase
-            return planningBoardRef.set(planningData);
-        })
-        .then(() => {
-            console.log('Board saved successfully to Firebase');
-            updateConnectionStatus('online', 'Saved');
-        })
-        .catch(error => {
-            console.error('Error saving to Firebase:', error);
-            updateConnectionStatus('error', 'Save Error');
-        });
-}
+    }
     
     function loadInitialData() {
         // Load staff list
