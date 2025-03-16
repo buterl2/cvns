@@ -14,14 +14,16 @@ document.addEventListener('DOMContentLoaded', function() {
         measurementId: "G-EJ0085542E"
     };
     
-    // Initialize Firebase
+    // After initializing Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // Change this line
     const planningBoardRef = db.ref('planningBoard');
-    
-    // ======= DIRECT REFERENCES TO FIREBASE PATHS =======
-    // This is key to the new approach - we reference specific parts of the database
+    // To this
+    window.planningBoardRef = db.ref('planningBoard');
+
+    // Keep the rest of your references the same
     const staffListRef = db.ref('planningBoard/staff');
     const positionsRef = db.ref('planningBoard/positions');
     
