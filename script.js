@@ -76,6 +76,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up drag and drop
         setupDragAndDrop();
+
+        normalizeDatabase();
         
         // Load initial data and set up realtime listeners
         loadInitialData();
@@ -93,8 +95,74 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    function normalizeDatabase() {
+        console.log('Normalizing database structure...');
+        updateConnectionStatus('syncing', 'Fixing database structure...');
+        
+        planningBoardRef.once('value')
+            .then(snapshot => {
+                if (!snapshot.exists()) return;
+                
+                const data = snapshot.val();
+                const updates = {};
+                let needsUpdate = false;
+                
+                // Make sure we have a positions object
+                if (!data.positions) {
+                    updates.positions = {};
+                    needsUpdate = true;
+                }
+                
+                // Check all positions and ensure they use arrays
+                if (data.positions) {
+                    Object.keys(data.positions).forEach(positionId => {
+                        const posValue = data.positions[positionId];
+                        
+                        // If it's a string (single ID), convert to array
+                        if (typeof posValue === 'string') {
+                            updates[`positions/${positionId}`] = [posValue];
+                            needsUpdate = true;
+                        } 
+                        // If it's null or undefined, set empty array
+                        else if (posValue === null || posValue === undefined) {
+                            updates[`positions/${positionId}`] = [];
+                            needsUpdate = true;
+                        }
+                        // If it's anything else but not an array, set empty array
+                        else if (!Array.isArray(posValue)) {
+                            updates[`positions/${positionId}`] = [];
+                            needsUpdate = true;
+                        }
+                    });
+                }
+                
+                // If we need to update the database
+                if (needsUpdate) {
+                    planningBoardRef.update(updates)
+                        .then(() => {
+                            console.log('Database structure normalized successfully');
+                            updateConnectionStatus('online', 'Database Fixed');
+                        })
+                        .catch(error => {
+                            console.error('Error normalizing database:', error);
+                            updateConnectionStatus('error', 'Fix Failed');
+                        });
+                } else {
+                    console.log('Database structure already normalized');
+                    updateConnectionStatus('online', 'Database OK');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking database structure:', error);
+                updateConnectionStatus('error', 'Check Failed');
+            });
+    }
     
     function updateConnectionStatus(status, message) {
+        const statusIndicator = document.querySelector('.status-indicator');
+        const statusText = document.querySelector('.status-text');
+        
         if (!statusIndicator || !statusText) {
             console.warn('Status indicator elements not found');
             return;
@@ -107,6 +175,92 @@ document.addEventListener('DOMContentLoaded', function() {
         statusIndicator.classList.add(status);
         statusText.textContent = message;
     }
+
+    // Make sure our saveToFirebase function preserves positions
+function saveToFirebase() {
+    updateConnectionStatus('syncing', 'Saving...');
+    
+    // First get the current positions
+    planningBoardRef.child('positions').once('value')
+        .then(snapshot => {
+            const currentPositions = snapshot.exists() ? snapshot.val() : {};
+            
+            // Build the planning data
+            const planningData = {
+                timestamp: Date.now(),
+                staff: []
+            };
+            
+            // Save all staff in the pool
+            availableStaffContainer.querySelectorAll('.staff-card').forEach(card => {
+                const id = card.getAttribute('data-id');
+                const name = card.querySelector('.staff-name').textContent;
+                const photoSrc = card.querySelector('img').src;
+                
+                planningData.staff.push({
+                    id: id,
+                    name: name,
+                    photo: photoSrc
+                });
+            });
+            
+            // Add staff from positions
+            document.querySelectorAll('.staff-dropzone .staff-card').forEach(card => {
+                const id = card.getAttribute('data-id');
+                const name = card.querySelector('.staff-name').textContent;
+                const photoSrc = card.querySelector('img').src;
+                
+                // Only add if not already in the list
+                if (!planningData.staff.some(s => s.id === id)) {
+                    planningData.staff.push({
+                        id: id,
+                        name: name,
+                        photo: photoSrc
+                    });
+                }
+            });
+            
+            // Set new positions based on current DOM state
+            const newPositions = {};
+            allDropZones.forEach(zone => {
+                const positionSlot = zone.closest('.position-slot');
+                if (!positionSlot) return;
+                
+                const positionId = positionSlot.getAttribute('data-position');
+                const staffCards = zone.querySelectorAll('.staff-card');
+                
+                if (staffCards.length > 0) {
+                    newPositions[positionId] = Array.from(staffCards).map(card => 
+                        card.getAttribute('data-id')
+                    );
+                } else {
+                    // Maintain empty arrays for empty positions
+                    newPositions[positionId] = [];
+                }
+            });
+            
+            // Preserve any positions not in the DOM
+            for (const positionId in currentPositions) {
+                if (!newPositions.hasOwnProperty(positionId)) {
+                    newPositions[positionId] = currentPositions[positionId];
+                }
+            }
+            
+            // Set the positions
+            planningData.positions = newPositions;
+            
+            // Save to Firebase
+            return planningBoardRef.set(planningData);
+        })
+        .then(() => {
+            console.log('Board saved successfully to Firebase');
+            updateConnectionStatus('online', 'Saved');
+        })
+        .catch(error => {
+            console.error('Error saving to Firebase:', error);
+            updateConnectionStatus('error', 'Save Error');
+        });
+}
     
     function loadInitialData() {
         // Load staff list
@@ -401,22 +555,33 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function addNewStaff(id, name, photoSrc) {
         // Add to our staff list
-        staffList.push({
-            id: id,
-            name: name,
-            photo: photoSrc
-        });
+        updateConnectionStatus('syncing', 'Adding new staff...');
         
-        // Update Firebase
-        updateConnectionStatus('syncing', 'Saving...');
-        staffListRef.set(staffList)
+        // First get the current staff list
+        planningBoardRef.child('staff').once('value')
+            .then(snapshot => {
+                let staffList = [];
+                if (snapshot.exists()) {
+                    staffList = snapshot.val() || [];
+                }
+                
+                // Add the new staff to the list
+                staffList.push({
+                    id: id,
+                    name: name,
+                    photo: photoSrc
+                });
+                
+                // Update only the staff array, not the whole board
+                return planningBoardRef.child('staff').set(staffList);
+            })
             .then(() => {
                 console.log('Staff added successfully');
-                updateConnectionStatus('online', 'Saved');
+                updateConnectionStatus('online', 'Staff Added');
             })
             .catch(error => {
                 console.error('Error adding staff:', error);
-                updateConnectionStatus('error', 'Save Error');
+                updateConnectionStatus('error', 'Add Failed');
             });
     }
     
@@ -530,49 +695,188 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const positionId = positionSlot.getAttribute('data-position');
                 
-                // First, remove staff from any position they might be in
-                for (const pos in positions) {
-                    if (positions[pos] && Array.isArray(positions[pos])) {
-                        const index = positions[pos].indexOf(staffId);
-                        if (index !== -1) {
-                            positions[pos].splice(index, 1);
-                            if (positions[pos].length === 0) {
-                                positions[pos] = [];
+                // First, remove this staff from any positions it might be in
+                const updates = {};
+                planningBoardRef.child('positions').once('value', snapshot => {
+                    if (snapshot.exists()) {
+                        snapshot.forEach(positionSnapshot => {
+                            const posKey = positionSnapshot.key;
+                            const posValue = positionSnapshot.val();
+                            
+                            // If this position has this staff, remove it
+                            if (Array.isArray(posValue) && posValue.includes(staffId)) {
+                                const newPosValue = posValue.filter(id => id !== staffId);
+                                updates[`positions/${posKey}`] = newPosValue;
+                            } else if (posValue === staffId) {
+                                // Handle the case where position has a single ID string
+                                updates[`positions/${posKey}`] = [];
                             }
-                        }
+                        });
                     }
-                }
-                
-                // Then, add to the new position
-                if (!positions[positionId]) {
-                    positions[positionId] = [];
-                }
-                positions[positionId].push(staffId);
-                
-                // Save the updated positions
-                updateConnectionStatus('syncing', 'Saving...');
-                positionsRef.set(positions)
-                    .then(() => {
-                        console.log('Positions updated successfully');
-                        updateConnectionStatus('online', 'Saved');
-                    })
-                    .catch(error => {
-                        console.error('Error updating positions:', error);
-                        updateConnectionStatus('error', 'Save Error');
+                    
+                    // Now add the staff to the new position
+                    planningBoardRef.child(`positions/${positionId}`).once('value', posSnapshot => {
+                        if (posSnapshot.exists()) {
+                            const currentValue = posSnapshot.val();
+                            if (Array.isArray(currentValue)) {
+                                // If it's already an array, add the staff ID
+                                if (!currentValue.includes(staffId)) {
+                                    updates[`positions/${positionId}`] = [...currentValue, staffId];
+                                }
+                            } else if (typeof currentValue === 'string') {
+                                // If it's a string (single ID), convert to array
+                                if (currentValue !== staffId) {
+                                    updates[`positions/${positionId}`] = [currentValue, staffId];
+                                }
+                            } else {
+                                // Otherwise, just set a new array
+                                updates[`positions/${positionId}`] = [staffId];
+                            }
+                        } else {
+                            // Position doesn't exist yet, create it as an array
+                            updates[`positions/${positionId}`] = [staffId];
+                        }
+                        
+                        // Apply all the updates in a single transaction
+                        if (Object.keys(updates).length > 0) {
+                            updateConnectionStatus('syncing', 'Updating positions...');
+                            planningBoardRef.update(updates)
+                                .then(() => {
+                                    console.log('Positions updated successfully');
+                                    updateConnectionStatus('online', 'Saved');
+                                    
+                                    // Add staff card to the dropzone (local update for immediate feedback)
+                                    staffCard.parentNode.removeChild(staffCard);
+                                    zone.appendChild(staffCard);
+                                    
+                                    // Animation effect
+                                    staffCard.classList.add('dropped');
+                                    setTimeout(() => {
+                                        staffCard.classList.remove('dropped');
+                                    }, 300);
+                                    
+                                    // Equalize heights in the same row
+                                    equalizeHeightsInRow(zone);
+                                })
+                                .catch(error => {
+                                    console.error('Error updating positions:', error);
+                                    updateConnectionStatus('error', 'Update Error');
+                                });
+                        }
                     });
-                
-                // Animation effect
-                staffCard.classList.add('dropped');
-                setTimeout(() => {
-                    staffCard.classList.remove('dropped');
-                }, 300);
+                });
             }
         });
+    }
+
+    function populateFromSavedData(data) {
+        console.log('Populating from Firebase data:', data);
+        
+        // If there's no staff data, keep existing staff
+        if (!data.staff || !Array.isArray(data.staff)) {
+            console.warn('No staff data found or invalid format, skipping staff update');
+        } else {
+            // First, cache all existing staff cards by their IDs
+            const existingStaffCards = {};
+            document.querySelectorAll('.staff-card').forEach(card => {
+                const id = card.getAttribute('data-id');
+                existingStaffCards[id] = card;
+            });
+            
+            // Clear the staff pool
+            availableStaffContainer.innerHTML = '';
+            
+            // Track which staff members are placed in positions
+            const placedStaffIds = new Set();
+            
+            // If we have position data, process it to find placed staff
+            if (data.positions) {
+                Object.keys(data.positions).forEach(positionId => {
+                    const posValue = data.positions[positionId];
+                    if (Array.isArray(posValue)) {
+                        posValue.forEach(staffId => placedStaffIds.add(staffId));
+                    } else if (typeof posValue === 'string') {
+                        placedStaffIds.add(posValue);
+                    }
+                });
+            }
+            
+            // Add staff that aren't placed in positions to the pool
+            data.staff.forEach(staff => {
+                if (!placedStaffIds.has(staff.id)) {
+                    // If we have an existing card, reuse it, otherwise create new
+                    if (existingStaffCards[staff.id]) {
+                        availableStaffContainer.appendChild(existingStaffCards[staff.id]);
+                        delete existingStaffCards[staff.id];
+                    } else {
+                        createStaffCard(staff.id, staff.name, staff.photo);
+                    }
+                }
+            });
+        }
+        
+        // Handle position assignments
+        if (data.positions) {
+            document.querySelectorAll('.staff-dropzone').forEach(zone => {
+                const positionSlot = zone.closest('.position-slot');
+                if (!positionSlot) return;
+                
+                const positionId = positionSlot.getAttribute('data-position');
+                const positionData = data.positions[positionId];
+                
+                // Clear the zone first
+                zone.innerHTML = '';
+                
+                // If this position has assigned staff
+                if (positionData) {
+                    // Convert to array for consistent handling
+                    const staffIds = Array.isArray(positionData) ? positionData : [positionData];
+                    
+                    staffIds.forEach(staffId => {
+                        // Find staff data
+                        const staffData = data.staff ? data.staff.find(s => s.id === staffId) : null;
+                        
+                        if (staffData) {
+                            // Create or reuse the staff card
+                            let staffCard;
+                            const existingCard = document.querySelector(`[data-id="${staffId}"]`);
+                            
+                            if (existingCard) {
+                                staffCard = existingCard.cloneNode(true);
+                            } else {
+                                staffCard = document.createElement('div');
+                                staffCard.className = 'staff-card';
+                                staffCard.setAttribute('draggable', 'true');
+                                staffCard.setAttribute('data-id', staffId);
+                                
+                                staffCard.innerHTML = `
+                                    <div class="staff-photo">
+                                        <img src="${staffData.photo}" alt="${staffData.name}">
+                                    </div>
+                                    <div class="staff-info">
+                                        <p class="staff-name">${staffData.name}</p>
+                                    </div>
+                                `;
+                            }
+                            
+                            // Add to this position and setup drag events
+                            zone.appendChild(staffCard);
+                            setupDragEventsForElement(staffCard);
+                        }
+                    });
+                }
+                
+                // Update the heights for this row
+                equalizeHeightsInRow(zone);
+            });
+        }
+        
+        // Re-attach drag events to all cards
+        setupDragAndDrop();
     }
     
     // Make staff pool a valid dropzone for returning operators
     function setupStaffPoolAsDropZone() {
-        // Make both the container and section droppable
         [staffPool, availableStaffContainer].forEach(element => {
             element.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -588,30 +892,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 staffPool.classList.remove('highlight');
                 
                 const staffId = e.dataTransfer.getData('text/plain');
+                const staffCard = document.querySelector(`[data-id="${staffId}"]`);
                 
-                // Remove staff from any position
-                for (const positionId in positions) {
-                    if (positions[positionId] && Array.isArray(positions[positionId])) {
-                        const staffIndex = positions[positionId].indexOf(staffId);
-                        if (staffIndex !== -1) {
-                            positions[positionId].splice(staffIndex, 1);
-                            if (positions[positionId].length === 0) {
-                                positions[positionId] = [];
-                            }
-                            
-                            // Save the updated positions
-                            updateConnectionStatus('syncing', 'Saving...');
-                            positionsRef.set(positions)
+                if (staffCard) {
+                    // Remove this staff from any positions it might be in
+                    const updates = {};
+                    planningBoardRef.child('positions').once('value', snapshot => {
+                        let positionUpdated = false;
+                        
+                        if (snapshot.exists()) {
+                            snapshot.forEach(positionSnapshot => {
+                                const posKey = positionSnapshot.key;
+                                const posValue = positionSnapshot.val();
+                                
+                                // If this position has this staff, remove it
+                                if (Array.isArray(posValue) && posValue.includes(staffId)) {
+                                    const newPosValue = posValue.filter(id => id !== staffId);
+                                    updates[`positions/${posKey}`] = newPosValue;
+                                    positionUpdated = true;
+                                } else if (posValue === staffId) {
+                                    // Handle the case where position has a single ID string
+                                    updates[`positions/${posKey}`] = [];
+                                    positionUpdated = true;
+                                }
+                            });
+                        }
+                        
+                        // Only update Firebase if we actually modified a position
+                        if (positionUpdated) {
+                            updateConnectionStatus('syncing', 'Updating positions...');
+                            planningBoardRef.update(updates)
                                 .then(() => {
                                     console.log('Staff returned to pool successfully');
                                     updateConnectionStatus('online', 'Saved');
                                 })
                                 .catch(error => {
                                     console.error('Error returning staff to pool:', error);
-                                    updateConnectionStatus('error', 'Save Error');
+                                    updateConnectionStatus('error', 'Update Error');
                                 });
                         }
-                    }
+                        
+                        // Move the card back to the staff pool in the local UI
+                        staffCard.parentNode.removeChild(staffCard);
+                        availableStaffContainer.appendChild(staffCard);
+                    });
                 }
             });
         });
