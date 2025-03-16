@@ -6,6 +6,9 @@
     <title>CV / NS Planning Board</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="container">
@@ -272,6 +275,12 @@
                 <button type="submit">Add Staff</button>
             </form>
         </div>
+    </div>
+
+    <!-- Connection status indicator -->
+    <div id="connection-status" class="connection-status">
+        <div class="status-indicator offline"></div>
+        <span class="status-text">Offline</span>
     </div>
     
     <script src="script.js"></script>

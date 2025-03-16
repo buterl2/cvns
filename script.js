@@ -1,4 +1,23 @@
+// Firebase configuration
+// Add this at the top of your script.js file
 document.addEventListener('DOMContentLoaded', function() {
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBZhaLwkyDjtIOCkAbFIDORAVpNP5SK0OY",
+        authDomain: "planning-board-1ad74.firebaseapp.com",
+        databaseURL: "https://planning-board-1ad74-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "planning-board-1ad74",
+        storageBucket: "planning-board-1ad74.firebasestorage.app",
+        messagingSenderId: "867603634354",
+        appId: "1:867603634354:web:914c4a61c070cb828a51ab",
+        measurementId: "G-EJ0085542E"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const planningBoardRef = db.ref('planningBoard');
+    
     // Elements
     const availableStaffContainer = document.getElementById('available-staff');
     const staffPool = document.querySelector('.staff-pool');
@@ -21,9 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Track removal mode
     let removalMode = false;
     
-    // Local storage key
-    const STORAGE_KEY = 'warehousePlanningData';
-    
     // Staff ID counter
     let staffIdCounter = 1;
     
@@ -43,21 +59,63 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing staff cards to avoid duplicates
         availableStaffContainer.innerHTML = '';
         
-        // Load data from local storage or use sample data
-        const savedData = loadFromLocalStorage();
+        // Check if the board exists in Firebase
+        planningBoardRef.once('value', snapshot => {
+            if (snapshot.exists()) {
+                // Board exists, load data from Firebase
+                const savedData = snapshot.val();
+                populateFromSavedData(savedData);
+            } else {
+                // No board data in Firebase, use sample data
+                sampleStaff.forEach(staff => {
+                    createStaffCard(staff.id, staff.name, staff.photo);
+                });
+                // Save sample data to Firebase
+                saveToFirebase();
+            }
+            
+            // Listen for real-time updates
+            setupRealtimeListeners();
+            
+            // Set up event listeners
+            setupEventListeners();
+        });
+    }
+
+    // Add this to your script.js file after the init() function
+
+    function setupConnectionStatus() {
+        const statusIndicator = document.querySelector('.status-indicator');
+        const statusText = document.querySelector('.status-text');
         
-        if (savedData) {
-            // Populate staff pool and positions from saved data
-            populateFromSavedData(savedData);
-        } else {
-            // Use sample data
-            sampleStaff.forEach(staff => {
-                createStaffCard(staff.id, staff.name, staff.photo);
-            });
-        }
+        // Check connection to Firebase
+        const connectedRef = firebase.database().ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+                statusIndicator.classList.remove('offline');
+                statusIndicator.classList.add('online');
+                statusText.textContent = 'Online';
+            } else {
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                statusText.textContent = 'Offline';
+            }
+        });
         
-        // Set up event listeners
-        setupEventListeners();
+        // Show syncing status during updates
+        planningBoardRef.on('value', () => {
+            if (!isCurrentlySaving) {
+                statusIndicator.classList.remove('online', 'offline');
+                statusIndicator.classList.add('syncing');
+                statusText.textContent = 'Syncing...';
+                
+                setTimeout(() => {
+                    statusIndicator.classList.remove('syncing');
+                    statusIndicator.classList.add('online');
+                    statusText.textContent = 'Online';
+                }, 1000);
+            }
+        });
     }
     
     function setupEventListeners() {
@@ -70,10 +128,10 @@ document.addEventListener('DOMContentLoaded', function() {
         addSupportButton.addEventListener('click', () => {
             const supportName = prompt('Enter support name:');
             if (supportName && supportName.trim() !== '') {
-                const staffId = 'support-' + staffIdCounter++;
+                const staffId = 'support-' + Date.now(); // Use timestamp for unique IDs
                 const photoSrc = createPlaceholderImage();
                 createStaffCard(staffId, supportName.trim(), photoSrc);
-                saveToLocalStorage();
+                saveToFirebase();
             }
         });
         
@@ -95,8 +153,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add new staff form
         newStaffForm.addEventListener('submit', handleNewStaffSubmit);
         
-        // Save board
-        saveButton.addEventListener('click', saveToLocalStorage);
+        // Save board - now just syncs to Firebase
+        saveButton.addEventListener('click', saveToFirebase);
         
         // Reset board
         resetButton.addEventListener('click', confirmReset);
@@ -104,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Set up drag and drop
         setupDragAndDrop();
         
-        // Floor toggle buttons - Fix the toggle functionality
+        // Floor toggle buttons
         floorToggles.forEach(toggle => {
             toggle.addEventListener('click', function(e) {
                 // Get the parent floor div
@@ -121,6 +179,24 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    
+    function setupRealtimeListeners() {
+        // Listen for changes to the board data
+        planningBoardRef.on('value', snapshot => {
+            if (snapshot.exists()) {
+                const firebaseData = snapshot.val();
+                
+                // Only update if we're not the ones who just made the change
+                if (!isCurrentlySaving) {
+                    console.log('Received update from Firebase');
+                    populateFromSavedData(firebaseData);
+                }
+            }
+        });
+    }
+    
+    // Flag to prevent update loops
+    let isCurrentlySaving = false;
     
     function toggleRemovalMode() {
         removalMode = !removalMode;
@@ -152,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (removalMode) {
             const card = e.currentTarget;
             card.remove();
-            saveToLocalStorage();
+            saveToFirebase();
         }
     }
     
@@ -208,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function finishAddingStaff(name, photoSrc) {
-        const staffId = 'staff-' + staffIdCounter++;
+        const staffId = 'staff-' + Date.now(); // Use timestamp for unique IDs
         
         // If photoSrc is the default placeholder, replace with our custom one
         if (photoSrc === 'placeholder-photo.jpg') {
@@ -222,8 +298,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('staff-photo').value = '';
         modal.style.display = 'none';
         
-        // Save to local storage
-        saveToLocalStorage();
+        // Save to Firebase
+        saveToFirebase();
     }
     
     function createStaffCard(id, name, photoSrc) {
@@ -287,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.staff-placeholder').forEach(ph => ph.remove());
             
             // Save board state
-            saveToLocalStorage();
+            saveToFirebase();
         });
     }
     
@@ -323,6 +399,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Equalize heights in the same row
                 equalizeHeightsInRow(zone);
+                
+                // Save to Firebase
+                saveToFirebase();
             }
         });
     }
@@ -360,15 +439,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Equalize heights in the original row
                         equalizeHeightsInRow(fromPosition);
                         
-                        // Save board state
-                        saveToLocalStorage();
+                        // Save to Firebase
+                        saveToFirebase();
                     }
                 }
             });
         });
     }
     
-    // MODIFIED: Only equalize heights of positions in the same visual row
+    // Only equalize heights of positions in the same visual row
     function equalizeHeightsInRow(zone) {
         // Find the position slot this zone belongs to
         const positionSlot = zone.closest('.position-slot');
@@ -409,7 +488,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
     
-    function saveToLocalStorage() {
+    function saveToFirebase() {
+        isCurrentlySaving = true;
         const planningData = {
             staff: [],
             positions: {}
@@ -443,57 +523,59 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Save to local storage
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(planningData));
-        
-        console.log('Board saved successfully');
-    }
-    
-    function loadFromLocalStorage() {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        return savedData ? JSON.parse(savedData) : null;
+        // Save to Firebase
+        planningBoardRef.set(planningData)
+            .then(() => {
+                console.log('Board saved successfully to Firebase');
+                setTimeout(() => {
+                    isCurrentlySaving = false;
+                }, 100);
+            })
+            .catch(error => {
+                console.error('Error saving to Firebase:', error);
+                isCurrentlySaving = false;
+            });
     }
     
     function populateFromSavedData(data) {
-        // Clear existing staff
+        // Clear existing staff and assignments
         availableStaffContainer.innerHTML = '';
-        
-        // Add all staff to the pool
-        data.staff.forEach(staff => {
-            createStaffCard(staff.id, staff.name, staff.photo);
+        document.querySelectorAll('.staff-dropzone').forEach(zone => {
+            zone.innerHTML = '';
         });
         
-        // Assign staff to positions
-        for (const positionId in data.positions) {
-            const staffIds = data.positions[positionId];
-            const positionSlot = document.querySelector(`[data-position="${positionId}"]`);
-            
-            if (positionSlot) {
-                const dropzone = positionSlot.querySelector('.staff-dropzone');
-                
-                // Handle both old format (single ID) and new format (array of IDs)
-                const idsArray = Array.isArray(staffIds) ? staffIds : [staffIds];
-                
-                idsArray.forEach(staffId => {
-                    const staffCard = document.querySelector(`[data-id="${staffId}"]`);
-                    if (staffCard) {
-                        staffCard.parentNode.removeChild(staffCard);
-                        dropzone.appendChild(staffCard);
-                    }
-                });
-                
-                // Equalize heights
-                equalizeHeightsInRow(dropzone);
-            }
+        // Add all staff to the pool first
+        if (data.staff && Array.isArray(data.staff)) {
+            data.staff.forEach(staff => {
+                createStaffCard(staff.id, staff.name, staff.photo);
+            });
         }
         
-        // Update staff ID counter to be higher than any existing ID
-        data.staff.forEach(staff => {
-            const idMatch = staff.id.match(/staff-(\d+)/);
-            if (idMatch && parseInt(idMatch[1]) >= staffIdCounter) {
-                staffIdCounter = parseInt(idMatch[1]) + 1;
+        // Assign staff to positions
+        if (data.positions) {
+            for (const positionId in data.positions) {
+                const staffIds = data.positions[positionId];
+                const positionSlot = document.querySelector(`[data-position="${positionId}"]`);
+                
+                if (positionSlot) {
+                    const dropzone = positionSlot.querySelector('.staff-dropzone');
+                    
+                    // Handle both old format (single ID) and new format (array of IDs)
+                    const idsArray = Array.isArray(staffIds) ? staffIds : [staffIds];
+                    
+                    idsArray.forEach(staffId => {
+                        const staffCard = document.querySelector(`[data-id="${staffId}"]`);
+                        if (staffCard) {
+                            staffCard.parentNode.removeChild(staffCard);
+                            dropzone.appendChild(staffCard);
+                        }
+                    });
+                    
+                    // Equalize heights
+                    equalizeHeightsInRow(dropzone);
+                }
             }
-        });
+        }
     }
     
     function confirmReset() {
@@ -509,7 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Save the reset state
-        saveToLocalStorage();
+        saveToFirebase();
     }
     
     function setupDragAndDrop() {
