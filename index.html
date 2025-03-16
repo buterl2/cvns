@@ -6,7 +6,8 @@
     <title>CV / NS Planning Board</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
-
+    
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
@@ -24,24 +25,7 @@
             <section class="staff-pool">
                 <h2>Available Operators</h2>
                 <div class="staff-container" id="available-staff">
-                    <!-- Example staff members -->
-                    <div class="staff-card" draggable="true" data-id="staff1">
-                        <div class="staff-photo">
-                            <img src="placeholder-photo.jpg" alt="Staff Member">
-                        </div>
-                        <div class="staff-info">
-                            <p class="staff-name">John Doe</p>
-                        </div>
-                    </div>
-                    
-                    <div class="staff-card" draggable="true" data-id="staff2">
-                        <div class="staff-photo">
-                            <img src="placeholder-photo.jpg" alt="Staff Member">
-                        </div>
-                        <div class="staff-info">
-                            <p class="staff-name">Jane Smith</p>
-                        </div>
-                    </div>
+                    <!-- Staff members will be populated dynamically -->
                 </div>
             </section>
             
@@ -276,11 +260,11 @@
             </form>
         </div>
     </div>
-
+    
     <!-- Connection status indicator -->
     <div id="connection-status" class="connection-status">
-        <div class="status-indicator offline"></div>
-        <span class="status-text">Offline</span>
+        <div class="status-indicator connecting"></div>
+        <span class="status-text">Connecting...</span>
     </div>
     
     <script src="script.js"></script>

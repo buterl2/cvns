@@ -329,6 +329,10 @@ button#add-support:hover {
     position: relative;
 }
 
+.staff-card {
+    position: relative;
+}
+
 .staff-card.moved {
     animation: highlight-move 1.5s ease;
 }
@@ -481,7 +485,8 @@ input[type="text"]:focus {
     display: flex;
     align-items: center;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-    z-index: 100;
+    z-index: 1000;
+    transition: all 0.3s ease;
 }
 
 .status-indicator {
@@ -489,34 +494,35 @@ input[type="text"]:focus {
     height: 12px;
     border-radius: 50%;
     margin-right: 8px;
+    transition: all 0.3s ease;
 }
 
 .status-indicator.online {
-    background-color: #2ecc71;
+    background-color: #2ecc71; /* Green */
     box-shadow: 0 0 8px rgba(46, 204, 113, 0.8);
 }
 
 .status-indicator.offline {
-    background-color: #e74c3c;
+    background-color: #e74c3c; /* Red */
     box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
 }
 
-.status-indicator.error {
-    background-color: #e74c3c;
-    box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
-    animation: error-pulse 1s infinite;
-}
-
-.status-indicator.syncing {
-    background-color: #f39c12;
-    box-shadow: 0 0 8px rgba(243, 156, 18, 0.8);
+.status-indicator.connecting {
+    background-color: #3498db; /* Blue */
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.8);
     animation: pulse 1.5s infinite;
 }
 
-@keyframes error-pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
+.status-indicator.syncing {
+    background-color: #f39c12; /* Orange */
+    box-shadow: 0 0 8px rgba(243, 156, 18, 0.8);
+    animation: pulse 1s infinite;
+}
+
+.status-indicator.error {
+    background-color: #e74c3c; /* Red */
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+    animation: error-pulse 1s infinite;
 }
 
 @keyframes pulse {
@@ -525,9 +531,16 @@ input[type="text"]:focus {
     100% { opacity: 0.6; }
 }
 
+@keyframes error-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
 .status-text {
     color: white;
     font-size: 14px;
+    transition: all 0.3s ease;
 }
 
 /* Drag-and-drop specific styles */

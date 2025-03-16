@@ -1,7 +1,5 @@
-// Firebase configuration
-// Add this at the top of your script.js file
 document.addEventListener('DOMContentLoaded', function() {
-    // Firebase configuration
+    // Firebase configuration - REPLACE WITH YOUR ACTUAL CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyBZhaLwkyDjtIOCkAbFIDORAVpNP5SK0OY",
         authDomain: "planning-board-1ad74.firebaseapp.com",
@@ -17,6 +15,10 @@ document.addEventListener('DOMContentLoaded', function() {
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const planningBoardRef = db.ref('planningBoard');
+    
+    // Connection status elements
+    const statusIndicator = document.querySelector('.status-indicator');
+    const statusText = document.querySelector('.status-text');
     
     // Elements
     const availableStaffContainer = document.getElementById('available-staff');
@@ -40,10 +42,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Track removal mode
     let removalMode = false;
     
-    // Staff ID counter
-    let staffIdCounter = 1;
+    // Flag to prevent update loops
+    let isCurrentlySaving = false;
     
-    // Sample staff members (can be removed in production)
+    // Sample staff members (used only if no data exists)
     const sampleStaff = [
         { id: 'sample1', name: 'John Doe', photo: 'placeholder-photo.jpg' },
         { id: 'sample2', name: 'Jane Smith', photo: 'placeholder-photo.jpg' },
@@ -56,65 +58,107 @@ document.addEventListener('DOMContentLoaded', function() {
     init();
     
     function init() {
+        console.log('Initializing planning board...');
+        
+        // Set initial connection status
+        updateConnectionStatus('connecting', 'Connecting...');
+        
+        // Setup connection monitoring
+        setupConnectionMonitoring();
+        
         // Clear existing staff cards to avoid duplicates
         availableStaffContainer.innerHTML = '';
         
         // Check if the board exists in Firebase
-        planningBoardRef.once('value', snapshot => {
-            if (snapshot.exists()) {
-                // Board exists, load data from Firebase
-                const savedData = snapshot.val();
-                populateFromSavedData(savedData);
-            } else {
-                // No board data in Firebase, use sample data
+        planningBoardRef.once('value')
+            .then(snapshot => {
+                if (snapshot.exists()) {
+                    console.log('Found existing board data in Firebase');
+                    // Board exists, load data from Firebase
+                    const savedData = snapshot.val();
+                    populateFromSavedData(savedData);
+                } else {
+                    console.log('No existing board data, using sample data');
+                    // No board data in Firebase, use sample data
+                    sampleStaff.forEach(staff => {
+                        createStaffCard(staff.id, staff.name, staff.photo);
+                    });
+                    // Save sample data to Firebase
+                    saveToFirebase();
+                }
+                
+                // Listen for real-time updates
+                setupRealtimeListeners();
+                
+                // Set up event listeners
+                setupEventListeners();
+                
+                console.log('Initialization complete');
+            })
+            .catch(error => {
+                console.error('Error initializing from Firebase:', error);
+                updateConnectionStatus('error', 'Connection Error');
+                
+                // Fall back to sample data
                 sampleStaff.forEach(staff => {
                     createStaffCard(staff.id, staff.name, staff.photo);
                 });
-                // Save sample data to Firebase
-                saveToFirebase();
-            }
-            
-            // Listen for real-time updates
-            setupRealtimeListeners();
-            
-            // Set up event listeners
-            setupEventListeners();
-        });
+                
+                // Set up event listeners anyway
+                setupEventListeners();
+            });
     }
-
-    // Add this to your script.js file after the init() function
-
-    function setupConnectionStatus() {
-        const statusIndicator = document.querySelector('.status-indicator');
-        const statusText = document.querySelector('.status-text');
-        
-        // Check connection to Firebase
+    
+    function setupConnectionMonitoring() {
         const connectedRef = firebase.database().ref('.info/connected');
         connectedRef.on('value', (snap) => {
             if (snap.val() === true) {
-                statusIndicator.classList.remove('offline');
-                statusIndicator.classList.add('online');
-                statusText.textContent = 'Online';
+                console.log('Connected to Firebase');
+                updateConnectionStatus('online', 'Online');
             } else {
-                statusIndicator.classList.remove('online');
-                statusIndicator.classList.add('offline');
-                statusText.textContent = 'Offline';
+                console.log('Disconnected from Firebase');
+                updateConnectionStatus('offline', 'Offline');
             }
         });
+    }
+    
+    function updateConnectionStatus(status, message) {
+        if (!statusIndicator || !statusText) {
+            console.warn('Status indicator elements not found');
+            return;
+        }
         
-        // Show syncing status during updates
-        planningBoardRef.on('value', () => {
-            if (!isCurrentlySaving) {
-                statusIndicator.classList.remove('online', 'offline');
-                statusIndicator.classList.add('syncing');
-                statusText.textContent = 'Syncing...';
+        // Remove all status classes
+        statusIndicator.classList.remove('online', 'offline', 'connecting', 'syncing', 'error');
+        
+        // Add the appropriate class
+        statusIndicator.classList.add(status);
+        statusText.textContent = message;
+    }
+    
+    function setupRealtimeListeners() {
+        // Listen for changes to the board data
+        planningBoardRef.on('value', snapshot => {
+            if (snapshot.exists()) {
+                const firebaseData = snapshot.val();
                 
-                setTimeout(() => {
-                    statusIndicator.classList.remove('syncing');
-                    statusIndicator.classList.add('online');
-                    statusText.textContent = 'Online';
-                }, 1000);
+                // Only update if we're not the ones who just made the change
+                if (!isCurrentlySaving) {
+                    console.log('Received update from Firebase, applying changes');
+                    updateConnectionStatus('syncing', 'Syncing...');
+                    populateFromSavedData(firebaseData);
+                    setTimeout(() => {
+                        updateConnectionStatus('online', 'Online');
+                    }, 500);
+                } else {
+                    console.log('Ignoring Firebase update as we just saved this data');
+                }
+            } else {
+                console.warn('No data in Firebase snapshot');
             }
+        }, error => {
+            console.error('Firebase data sync error:', error);
+            updateConnectionStatus('error', 'Sync Error');
         });
     }
     
@@ -153,8 +197,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add new staff form
         newStaffForm.addEventListener('submit', handleNewStaffSubmit);
         
-        // Save board - now just syncs to Firebase
-        saveButton.addEventListener('click', saveToFirebase);
+        // Save board button
+        saveButton.addEventListener('click', () => saveToFirebase());
         
         // Reset board
         resetButton.addEventListener('click', confirmReset);
@@ -179,53 +223,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
-    function setupRealtimeListeners() {
-        // Listen for changes to the board data
-        planningBoardRef.on('value', snapshot => {
-            if (snapshot.exists()) {
-                const firebaseData = snapshot.val();
-                
-                // Only update if we're not the ones who just made the change
-                if (!isCurrentlySaving) {
-                    console.log('Received update from Firebase, applying changes...');
-                    populateFromSavedData(firebaseData);
-                    console.log('Update applied successfully');
-                } else {
-                    console.log('Ignoring Firebase update as we just saved this data');
-                }
-            } else {
-                console.warn('No data in Firebase snapshot');
-            }
-        }, error => {
-            console.error('Firebase data sync error:', error);
-            updateConnectionStatus('error', 'Sync Error');
-        });
-        
-        // Add this to monitor connection state more robustly
-        const connectedRef = firebase.database().ref('.info/connected');
-        connectedRef.on('value', snap => {
-            const connected = snap.val();
-            if (connected === true) {
-                console.log('Connected to Firebase');
-                updateConnectionStatus('online', 'Online');
-                
-                // When reconnected, force a full data refresh
-                planningBoardRef.once('value').then(snapshot => {
-                    if (snapshot.exists()) {
-                        console.log('Refreshing data after reconnection');
-                        populateFromSavedData(snapshot.val());
-                    }
-                });
-            } else {
-                console.log('Disconnected from Firebase');
-                updateConnectionStatus('offline', 'Offline');
-            }
-        });
-    }
-    
-    // Flag to prevent update loops
-    let isCurrentlySaving = false;
     
     function toggleRemovalMode() {
         removalMode = !removalMode;
@@ -518,8 +515,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function saveToFirebase() {
+        // Set the saving flag to prevent update loops
         isCurrentlySaving = true;
+        updateConnectionStatus('syncing', 'Saving...');
+        
+        // Create the data structure
         const planningData = {
+            timestamp: Date.now(), // Add timestamp for versioning
             staff: [],
             positions: {}
         };
@@ -549,6 +551,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 planningData.positions[positionId] = Array.from(staffCards).map(card => 
                     card.getAttribute('data-id')
                 );
+            } else {
+                // Explicitly set empty positions to empty array 
+                // This ensures they are cleared on other clients
+                planningData.positions[positionId] = [];
             }
         });
         
@@ -556,20 +562,29 @@ document.addEventListener('DOMContentLoaded', function() {
         planningBoardRef.set(planningData)
             .then(() => {
                 console.log('Board saved successfully to Firebase');
+                updateConnectionStatus('online', 'Saved');
+                
+                // Reset saving flag after a short delay
                 setTimeout(() => {
                     isCurrentlySaving = false;
-                }, 100);
+                }, 500);
             })
             .catch(error => {
                 console.error('Error saving to Firebase:', error);
+                updateConnectionStatus('error', 'Save Error');
                 isCurrentlySaving = false;
             });
     }
     
     function populateFromSavedData(data) {
-        console.log('Populating from data:', data);
+        console.log('Populating from Firebase data:', data);
         
-        // First, save all existing staff cards by their IDs for later reference
+        if (!data || !data.staff) {
+            console.error('Invalid data structure received from Firebase');
+            return;
+        }
+        
+        // First, cache all existing staff cards by their IDs for later
         const existingStaffCards = {};
         document.querySelectorAll('.staff-card').forEach(card => {
             const id = card.getAttribute('data-id');
@@ -582,23 +597,10 @@ document.addEventListener('DOMContentLoaded', function() {
             zone.innerHTML = '';
         });
         
-        // Create any staff that don't already exist
-        if (data.staff && Array.isArray(data.staff)) {
-            data.staff.forEach(staff => {
-                // If we already have this staff card, reuse it; otherwise create new
-                if (existingStaffCards[staff.id]) {
-                    availableStaffContainer.appendChild(existingStaffCards[staff.id]);
-                    delete existingStaffCards[staff.id]; // Remove from our reference object
-                } else {
-                    createStaffCard(staff.id, staff.name, staff.photo);
-                }
-            });
-        }
+        // Initialize an array to track which staff is placed in positions
+        const placedStaffIds = [];
         
-        // If there are any cards left in existingStaffCards, they're no longer in the data
-        // But we don't need to handle that as we've already cleared all containers
-        
-        // Now handle positions - this part is critical for syncing
+        // First, handle position assignments
         if (data.positions) {
             for (const positionId in data.positions) {
                 const staffIds = data.positions[positionId];
@@ -607,33 +609,77 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (positionSlot) {
                     const dropzone = positionSlot.querySelector('.staff-dropzone');
                     
-                    // Handle both old format (single ID) and new format (array of IDs)
-                    const idsArray = Array.isArray(staffIds) ? staffIds : [staffIds];
-                    
-                    idsArray.forEach(staffId => {
-                        // Find the staff card by ID - it must be in the available pool now
-                        const staffCard = document.querySelector(`[data-id="${staffId}"]`);
-                        if (staffCard) {
-                            // Remove from current container (which should be the staff pool)
-                            staffCard.parentNode.removeChild(staffCard);
+                    // Check if the position data is valid
+                    if (Array.isArray(staffIds)) {
+                        staffIds.forEach(staffId => {
+                            // Find the staff data
+                            const staffData = data.staff.find(s => s.id === staffId);
                             
-                            // Add to the dropzone
-                            dropzone.appendChild(staffCard);
-                        } else {
-                            console.warn(`Staff card with ID ${staffId} not found while placing in position ${positionId}`);
-                        }
-                    });
+                            if (staffData) {
+                                // Create or reuse the staff card
+                                let staffCard;
+                                
+                                if (existingStaffCards[staffId]) {
+                                    staffCard = existingStaffCards[staffId];
+                                    delete existingStaffCards[staffId]; // Remove from tracking
+                                } else {
+                                    // Create a new card if it doesn't exist
+                                    staffCard = document.createElement('div');
+                                    staffCard.className = 'staff-card';
+                                    staffCard.setAttribute('draggable', 'true');
+                                    staffCard.setAttribute('data-id', staffId);
+                                    
+                                    staffCard.innerHTML = `
+                                        <div class="staff-photo">
+                                            <img src="${staffData.photo}" alt="${staffData.name}">
+                                        </div>
+                                        <div class="staff-info">
+                                            <p class="staff-name">${staffData.name}</p>
+                                        </div>
+                                    `;
+                                    
+                                    // Setup drag events for this new card
+                                    setupDragEventsForElement(staffCard);
+                                }
+                                
+                                // Add to position
+                                dropzone.appendChild(staffCard);
+                                
+                                // Track that this staff is placed
+                                placedStaffIds.push(staffId);
+                            }
+                        });
+                    }
                     
-                    // Update the dropzone height
+                    // Update the heights for this row
                     equalizeHeightsInRow(dropzone);
-                } else {
-                    console.warn(`Position slot with ID ${positionId} not found`);
                 }
             }
         }
         
+        // Now add any staff that isn't placed in a position to the available pool
+        data.staff.forEach(staff => {
+            // Skip staff that's already placed in a position
+            if (!placedStaffIds.includes(staff.id)) {
+                // Check if we have an existing card to reuse
+                if (existingStaffCards[staff.id]) {
+                    availableStaffContainer.appendChild(existingStaffCards[staff.id]);
+                    delete existingStaffCards[staff.id]; // Remove from tracking
+                } else {
+                    // Create a new card
+                    createStaffCard(staff.id, staff.name, staff.photo);
+                }
+            }
+        });
+        
         // Re-attach drag events to all cards in case they were lost
         setupDragAndDrop();
+        
+        // Print any staff that wasn't reused (should normally be none)
+        const unusedStaffIds = Object.keys(existingStaffCards);
+        if (unusedStaffIds.length > 0) {
+            console.log('Staff cards that were not reused:', unusedStaffIds);
+        }
     }
     
     function confirmReset() {
