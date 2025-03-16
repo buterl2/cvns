@@ -106,7 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Normalizing database structure...');
         updateConnectionStatus('syncing', 'Fixing database structure...');
         
-        planningBoardRef.once('value')
+        // Use the direct reference instead of planningBoardRef
+        db.ref('planningBoard').once('value')
             .then(snapshot => {
                 if (!snapshot.exists()) return;
                 
@@ -145,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // If we need to update the database
                 if (needsUpdate) {
-                    planningBoardRef.update(updates)
+                    db.ref('planningBoard').update(updates)
                         .then(() => {
                             console.log('Database structure normalized successfully');
                             updateConnectionStatus('online', 'Database Fixed');
@@ -564,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateConnectionStatus('syncing', 'Adding new staff...');
         
         // First get the current staff list
-        planningBoardRef.child('staff').once('value')
+        db.ref('planningBoard/staff').once('value')
             .then(snapshot => {
                 let staffList = [];
                 if (snapshot.exists()) {
@@ -579,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 // Update only the staff array, not the whole board
-                return planningBoardRef.child('staff').set(staffList);
+                return db.ref('planningBoard/staff').set(staffList);
             })
             .then(() => {
                 console.log('Staff added successfully');
