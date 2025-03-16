@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    const planningBoardRef = db.ref('planningBoard');
     
     // ======= DIRECT REFERENCES TO FIREBASE PATHS =======
     // This is key to the new approach - we reference specific parts of the database
