@@ -188,9 +188,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Only update if we're not the ones who just made the change
                 if (!isCurrentlySaving) {
-                    console.log('Received update from Firebase');
+                    console.log('Received update from Firebase, applying changes...');
                     populateFromSavedData(firebaseData);
+                    console.log('Update applied successfully');
+                } else {
+                    console.log('Ignoring Firebase update as we just saved this data');
                 }
+            } else {
+                console.warn('No data in Firebase snapshot');
+            }
+        }, error => {
+            console.error('Firebase data sync error:', error);
+            updateConnectionStatus('error', 'Sync Error');
+        });
+        
+        // Add this to monitor connection state more robustly
+        const connectedRef = firebase.database().ref('.info/connected');
+        connectedRef.on('value', snap => {
+            const connected = snap.val();
+            if (connected === true) {
+                console.log('Connected to Firebase');
+                updateConnectionStatus('online', 'Online');
+                
+                // When reconnected, force a full data refresh
+                planningBoardRef.once('value').then(snapshot => {
+                    if (snapshot.exists()) {
+                        console.log('Refreshing data after reconnection');
+                        populateFromSavedData(snapshot.val());
+                    }
+                });
+            } else {
+                console.log('Disconnected from Firebase');
+                updateConnectionStatus('offline', 'Offline');
             }
         });
     }
@@ -538,20 +567,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function populateFromSavedData(data) {
-        // Clear existing staff and assignments
+        console.log('Populating from data:', data);
+        
+        // First, save all existing staff cards by their IDs for later reference
+        const existingStaffCards = {};
+        document.querySelectorAll('.staff-card').forEach(card => {
+            const id = card.getAttribute('data-id');
+            existingStaffCards[id] = card;
+        });
+        
+        // Clear both staff pool and all position dropzones
         availableStaffContainer.innerHTML = '';
         document.querySelectorAll('.staff-dropzone').forEach(zone => {
             zone.innerHTML = '';
         });
         
-        // Add all staff to the pool first
+        // Create any staff that don't already exist
         if (data.staff && Array.isArray(data.staff)) {
             data.staff.forEach(staff => {
-                createStaffCard(staff.id, staff.name, staff.photo);
+                // If we already have this staff card, reuse it; otherwise create new
+                if (existingStaffCards[staff.id]) {
+                    availableStaffContainer.appendChild(existingStaffCards[staff.id]);
+                    delete existingStaffCards[staff.id]; // Remove from our reference object
+                } else {
+                    createStaffCard(staff.id, staff.name, staff.photo);
+                }
             });
         }
         
-        // Assign staff to positions
+        // If there are any cards left in existingStaffCards, they're no longer in the data
+        // But we don't need to handle that as we've already cleared all containers
+        
+        // Now handle positions - this part is critical for syncing
         if (data.positions) {
             for (const positionId in data.positions) {
                 const staffIds = data.positions[positionId];
@@ -564,18 +611,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     const idsArray = Array.isArray(staffIds) ? staffIds : [staffIds];
                     
                     idsArray.forEach(staffId => {
+                        // Find the staff card by ID - it must be in the available pool now
                         const staffCard = document.querySelector(`[data-id="${staffId}"]`);
                         if (staffCard) {
+                            // Remove from current container (which should be the staff pool)
                             staffCard.parentNode.removeChild(staffCard);
+                            
+                            // Add to the dropzone
                             dropzone.appendChild(staffCard);
+                        } else {
+                            console.warn(`Staff card with ID ${staffId} not found while placing in position ${positionId}`);
                         }
                     });
                     
-                    // Equalize heights
+                    // Update the dropzone height
                     equalizeHeightsInRow(dropzone);
+                } else {
+                    console.warn(`Position slot with ID ${positionId} not found`);
                 }
             }
         }
+        
+        // Re-attach drag events to all cards in case they were lost
+        setupDragAndDrop();
     }
     
     function confirmReset() {

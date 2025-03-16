@@ -111,6 +111,7 @@ main {
     cursor: move;
     transition: all 0.3s ease;
     margin-bottom: 5px;
+    position: relative; /* For animation purposes */
 }
 
 .staff-card:hover {
@@ -328,6 +329,20 @@ button#add-support:hover {
     position: relative;
 }
 
+.staff-card.moved {
+    animation: highlight-move 1.5s ease;
+}
+
+@keyframes highlight-move {
+    0% { background-color: rgba(74, 165, 255, 0.7); }
+    100% { background-color: rgba(30, 25, 70, 0.9); }
+}
+
+.staff-dropzone:not(:empty) {
+    background-color: rgba(30, 25, 70, 0.4);
+    border-style: solid;
+}
+
 .removal-mode .staff-card.removable:hover {
     background-color: rgba(140, 44, 44, 0.7);
 }
@@ -486,10 +501,22 @@ input[type="text"]:focus {
     box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
 }
 
+.status-indicator.error {
+    background-color: #e74c3c;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+    animation: error-pulse 1s infinite;
+}
+
 .status-indicator.syncing {
     background-color: #f39c12;
     box-shadow: 0 0 8px rgba(243, 156, 18, 0.8);
     animation: pulse 1.5s infinite;
+}
+
+@keyframes error-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
 }
 
 @keyframes pulse {
