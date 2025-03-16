@@ -10,6 +10,9 @@
 <body>
     <div class="container">
         <header>
+            <div class="logo">
+                <img src="images/medtronic_logo_white.svg" alt="Medtronic Logo">
+            </div>
             <h1>CV / NS Planning Board</h1>
         </header>
         
@@ -42,8 +45,12 @@
             
             <section class="planning-board">
                 <div class="floor">
-                    <h2>Long Goods</h2>
-                    <div class="positions-container">
+                    <div class="floor-header">
+                        <h2>Long Goods</h2>
+                        <div class="floor-toggle">−</div>
+                    </div>
+                    <div class="floor-content">
+                        <div class="positions-container">
                         <div class="position-slot" data-position="long-goods-1">
                             <h3>Picking</h3>
                             <div class="staff-dropzone"></div>
@@ -76,8 +83,12 @@
                 </div>
                 
                 <div class="floor">
-                    <h2>Small Goods</h2>
-                    <div class="positions-container">
+                    <div class="floor-header">
+                        <h2>Small Goods</h2>
+                        <div class="floor-toggle">−</div>
+                    </div>
+                    <div class="floor-content">
+                        <div class="positions-container">
                         <div class="position-slot" data-position="small-goods-1">
                             <h3>Picking</h3>
                             <div class="staff-dropzone"></div>
@@ -110,8 +121,12 @@
                 </div>
                 
                 <div class="floor">
-                    <h2>Surgical Tech</h2>
-                    <div class="positions-container">
+                    <div class="floor-header">
+                        <h2>Surgical Tech</h2>
+                        <div class="floor-toggle">−</div>
+                    </div>
+                    <div class="floor-content">
+                        <div class="positions-container">
                         <div class="position-slot" data-position="surgical-tech-1">
                             <h3>Picking</h3>
                             <div class="staff-dropzone"></div>
@@ -144,8 +159,12 @@
                 </div>
                 
                 <div class="floor support">
-                    <h2>Support Competences</h2>
-                    <div class="positions-container">
+                    <div class="floor-header">
+                        <h2>Support Competences</h2>
+                        <div class="floor-toggle">−</div>
+                    </div>
+                    <div class="floor-content">
+                        <div class="positions-container">
                         <div class="position-slot" data-position="support-1">
                             <h3>Lean</h3>
                             <div class="staff-dropzone"></div>
@@ -190,8 +209,12 @@
                 </div>
                 
                 <div class="floor others">
-                    <h2>Others</h2>
-                    <div class="positions-container">
+                    <div class="floor-header">
+                        <h2>Others</h2>
+                        <div class="floor-toggle">−</div>
+                    </div>
+                    <div class="floor-content">
+                        <div class="positions-container">
                         <div class="position-slot" data-position="others-1">
                             <h3>Not Planned</h3>
                             <div class="staff-dropzone"></div>
@@ -216,6 +239,7 @@
         <footer>
             <div class="controls">
                 <button id="add-staff">Add New Staff</button>
+                <button id="remove-staff">Remove Staff</button>
                 <button id="save-board">Save Board</button>
                 <button id="reset-board">Reset Board</button>
             </div>

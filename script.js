@@ -2,12 +2,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Elements
     const staffPool = document.getElementById('available-staff');
     const addStaffButton = document.getElementById('add-staff');
+    const removeStaffButton = document.getElementById('remove-staff');
     const saveButton = document.getElementById('save-board');
     const resetButton = document.getElementById('reset-board');
     const modal = document.getElementById('add-staff-modal');
     const closeButton = document.querySelector('.close-button');
     const newStaffForm = document.getElementById('new-staff-form');
     const allDropZones = document.querySelectorAll('.staff-dropzone');
+    const floorToggles = document.querySelectorAll('.floor-toggle');
+    
+    // Track removal mode
+    let removalMode = false;
     
     // Local storage key
     const STORAGE_KEY = 'warehousePlanningData';
@@ -17,11 +22,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Sample staff members (can be removed in production)
     const sampleStaff = [
-        { id: 'sample1', name: 'Mihail', photo: 'placeholder-photo.jpg' },
-        { id: 'sample2', name: 'Rene', photo: 'placeholder-photo.jpg' },
-        { id: 'sample3', name: 'Victor', photo: 'placeholder-photo.jpg' },
-        { id: 'sample4', name: 'Marian', photo: 'placeholder-photo.jpg' },
-        { id: 'sample5', name: 'Ciomu', photo: 'placeholder-photo.jpg' }
+        { id: 'sample1', name: 'John Doe', photo: 'placeholder-photo.jpg' },
+        { id: 'sample2', name: 'Jane Smith', photo: 'placeholder-photo.jpg' },
+        { id: 'sample3', name: 'Mike Johnson', photo: 'placeholder-photo.jpg' },
+        { id: 'sample4', name: 'Sarah Williams', photo: 'placeholder-photo.jpg' },
+        { id: 'sample5', name: 'David Brown', photo: 'placeholder-photo.jpg' }
     ];
     
     // Initialize
@@ -51,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.style.display = 'block';
         });
         
+        // Remove staff button
+        removeStaffButton.addEventListener('click', toggleRemovalMode);
+        
         // Close modal
         closeButton.addEventListener('click', () => {
             modal.style.display = 'none';
@@ -74,6 +82,60 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up drag and drop
         setupDragAndDrop();
+        
+        // Floor toggle buttons
+        floorToggles.forEach(toggle => {
+            toggle.addEventListener('click', toggleFloor);
+        });
+    }
+    
+    function toggleFloor(e) {
+        const floor = e.target.closest('.floor');
+        floor.classList.toggle('collapsed');
+        
+        if (floor.classList.contains('collapsed')) {
+            e.target.textContent = '+';
+        } else {
+            e.target.textContent = '−';
+        }
+    }
+    
+    function toggleRemovalMode() {
+        removalMode = !removalMode;
+        
+        if (removalMode) {
+            removeStaffButton.classList.add('active');
+            removeStaffButton.textContent = 'Cancel Removal';
+            document.body.classList.add('removal-mode');
+            
+            // Add click events for removal
+            document.querySelectorAll('.staff-card').forEach(card => {
+                card.classList.add('removable');
+                card.addEventListener('click', removeStaffCard);
+            });
+        } else {
+            removeStaffButton.classList.remove('active');
+            removeStaffButton.textContent = 'Remove Staff';
+            document.body.classList.remove('removal-mode');
+            
+            // Remove click events
+            document.querySelectorAll('.staff-card').forEach(card => {
+                card.classList.remove('removable');
+                card.removeEventListener('click', removeStaffCard);
+            });
+        }
+    }
+    
+    function removeStaffCard(e) {
+        if (removalMode) {
+            const card = e.currentTarget;
+            const confirmRemoval = confirm(`Are you sure you want to remove ${card.querySelector('.staff-name').textContent}?`);
+            
+            if (confirmRemoval) {
+                card.remove();
+                saveToLocalStorage();
+            }
+        }
     }
     
     function handleNewStaffSubmit(e) {
@@ -146,6 +208,9 @@ document.addEventListener('DOMContentLoaded', function() {
             setupDropZone(zone);
         });
         
+        // Make staff pool a valid dropzone
+        setupStaffPoolAsDropZone();
+        
         // Initialize heights for all rows
         document.querySelectorAll('.positions-container').forEach(container => {
             const firstDropzone = container.querySelector('.staff-dropzone');
@@ -214,6 +279,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Equalize heights in the same row
                 equalizeHeightsInRow(zone);
+            }
+        });
+    }
+    
+    // Make staff pool a valid dropzone for returning operators
+    function setupStaffPoolAsDropZone() {
+        staffPool.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            staffPool.classList.add('highlight');
+        });
+        
+        staffPool.addEventListener('dragleave', () => {
+            staffPool.classList.remove('highlight');
+        });
+        
+        staffPool.addEventListener('drop', (e) => {
+            e.preventDefault();
+            staffPool.classList.remove('highlight');
+            
+            const staffId = e.dataTransfer.getData('text/plain');
+            const staffCard = document.querySelector(`[data-id="${staffId}"]`);
+            
+            if (staffCard) {
+                // Only allow dropping back to pool if from a position
+                const fromPosition = staffCard.closest('.staff-dropzone');
+                if (fromPosition) {
+                    // Remove from position
+                    staffCard.parentNode.removeChild(staffCard);
+                    
+                    // Add back to staff pool
+                    staffPool.appendChild(staffCard);
+                    
+                    // Equalize heights in the original row
+                    equalizeHeightsInRow(fromPosition);
+                    
+                    // Save board state
+                    saveToLocalStorage();
+                }
             }
         });
     }
@@ -342,5 +445,38 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Save the reset state
         saveToLocalStorage();
+    }
+    
+    // Register a new staff card for removal mode if it's active
+    function registerForRemoval(card) {
+        if (removalMode) {
+            card.classList.add('removable');
+            card.addEventListener('click', removeStaffCard);
+        }
+    }
+    
+    function createStaffCard(id, name, photoSrc) {
+        const staffCard = document.createElement('div');
+        staffCard.className = 'staff-card';
+        staffCard.setAttribute('draggable', 'true');
+        staffCard.setAttribute('data-id', id);
+        
+        staffCard.innerHTML = `
+            <div class="staff-photo">
+                <img src="${photoSrc}" alt="${name}">
+            </div>
+            <div class="staff-info">
+                <p class="staff-name">${name}</p>
+            </div>
+        `;
+        
+        // Add to staff pool
+        staffPool.appendChild(staffCard);
+        
+        // Set up drag events for the new card
+        setupDragEventsForElement(staffCard);
+        
+        // Register for removal if in removal mode
+        registerForRemoval(staffCard);
     }
 });
