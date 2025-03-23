@@ -3,10 +3,6 @@ let staffMembers = [];
 let isLocked = false;
 const PLANNING_PASSWORD = 'CVNS2025';
 let currentUser;
-const userColors = [
-  '#4CAF50', '#2196F3', '#FF9800', '#E91E63', 
-  '#9C27B0', '#00BCD4', '#FFEB3B', '#795548'
-];
 
 // Productivity rates for different zones
 const productivityRates = {
@@ -35,9 +31,10 @@ function init() {
 // Enhanced initialization with Firebase
 function enhancedInit() {
     generateUserId();
+    // Fix data-zone attributes before setting up listeners
+    setTimeout(fixDataZoneAttributes, 500);
     setupFirebaseListeners();
     setupOutputListeners();
-    setupUserActivityListeners();
     setupSectionStateListeners();
     updateClock();
     setInterval(updateClock, 1000);
@@ -57,29 +54,22 @@ function enhancedInit() {
     });
 }
 
-// Generate a random user ID for cursor tracking
+// Generate a random user ID
 function generateUserId() {
     // Create a random ID for this user
     currentUser = {
-        id: 'user_' + Math.random().toString(36).substr(2, 9),
-        color: userColors[Math.floor(Math.random() * userColors.length)]
+        id: 'user_' + Math.random().toString(36).substr(2, 9)
     };
     
     // Store the user in Firebase so others know they're online
     window.db.ref('users/' + currentUser.id).set({
-        lastActive: firebase.database.ServerValue.TIMESTAMP,
-        color: currentUser.color
+        lastActive: firebase.database.ServerValue.TIMESTAMP
     });
     
     // Remove the user when they leave
     window.addEventListener('beforeunload', () => {
         window.db.ref('users/' + currentUser.id).remove();
     });
-    
-    // Keep user's "lastActive" updated
-    setInterval(() => {
-        window.db.ref('users/' + currentUser.id + '/lastActive').set(firebase.database.ServerValue.TIMESTAMP);
-    }, 30000);
 }
 
 // Setup Firebase listeners
@@ -179,12 +169,6 @@ function setupFirebaseListeners() {
         isLocked = snapshot.val() || false;
         document.getElementById('lockStatus').textContent = isLocked ? 'Unlock Planning' : 'Lock Planning';
     });
-    
-    // Listen for cursor positions (optional - for collaborative feel)
-    window.db.ref('cursors').on('value', (snapshot) => {
-        const cursors = snapshot.val() || {};
-        updateCursors(cursors);
-    });
 
     // Listen for button states
     window.db.ref('buttonStates').on('value', (snapshot) => {
@@ -198,6 +182,42 @@ function setupFirebaseListeners() {
     });
 }
 
+// Fix data-zone attributes on management cells
+function fixDataZoneAttributes() {
+    // Fix Operations Manager cells
+    const opManagerWrapper = document.querySelector('.flex.justify-center.mb-4');
+    if (opManagerWrapper) {
+        const opManagerZones = opManagerWrapper.querySelectorAll('.drag-zone');
+        opManagerZones.forEach((zone) => {
+            if (!zone.dataset.zone) {
+                zone.dataset.zone = 'management-operations';
+            }
+        });
+    }
+    
+    // Fix Supervisor cells
+    const supervisorWrapper = document.querySelector('.grid.grid-cols-3.gap-4');
+    if (supervisorWrapper) {
+        const supervisorZones = supervisorWrapper.querySelectorAll('.drag-zone');
+        supervisorZones.forEach((zone) => {
+            if (!zone.dataset.zone) {
+                zone.dataset.zone = 'management-supervision';
+            }
+        });
+    }
+    
+    // Fix Area Coordinator cells
+    const coordinatorWrapper = document.querySelector('.grid.grid-cols-4.gap-4.mt-4');
+    if (coordinatorWrapper) {
+        const coordinatorZones = coordinatorWrapper.querySelectorAll('.drag-zone');
+        coordinatorZones.forEach((zone) => {
+            if (!zone.dataset.zone) {
+                zone.dataset.zone = 'management-coordinator';
+            }
+        });
+    }
+}
+
 // Additional Firebase listeners
 function setupOutputListeners() {
     window.db.ref('outputs').on('value', (snapshot) => {
@@ -208,14 +228,6 @@ function setupOutputListeners() {
                 outputElement.textContent = output;
             }
         });
-    });
-}
-
-function setupUserActivityListeners() {
-    window.db.ref('users').on('value', (snapshot) => {
-        const users = snapshot.val() || {};
-        const count = Object.keys(users).length;
-        document.getElementById('activeUsers').textContent = `${count} user${count !== 1 ? 's' : ''} online`;
     });
 }
 
@@ -235,52 +247,17 @@ function setupSectionStateListeners() {
     });
 }
 
-// Function to show other users' cursors
-function updateCursors(cursors) {
-    // Remove old cursor elements
-    document.querySelectorAll('.user-cursor').forEach(el => el.remove());
-    
-    // Add cursor elements for other users
-    Object.entries(cursors).forEach(([userId, cursorData]) => {
-        if (userId !== currentUser.id && cursorData.timestamp > Date.now() - 10000) {
-            const cursorEl = document.createElement('div');
-            cursorEl.className = 'user-cursor';
-            cursorEl.style.left = cursorData.x + 'px';
-            cursorEl.style.top = cursorData.y + 'px';
-            cursorEl.style.backgroundColor = cursorData.color;
-            document.body.appendChild(cursorEl);
-        }
-    });
-}
-
-// Track and broadcast cursor position
-document.addEventListener('mousemove', debounce((e) => {
-    window.db.ref('cursors/' + currentUser.id).set({
-        x: e.clientX,
-        y: e.clientY,
-        color: currentUser.color,
-        timestamp: Date.now()
-    });
-}, 100));
-
-// Utility function for limiting cursor updates
-function debounce(func, wait) {
-    let timeout;
-    return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
-
 // Show notification when changes happen
 function showChangeNotification(message) {
     const notification = document.getElementById('changeNotification');
-    notification.textContent = message;
-    notification.classList.add('show');
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
+    if (notification) {
+        notification.textContent = message;
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
 }
 
 // Setup modals and form handlers
@@ -914,47 +891,6 @@ function deleteStaff(id) {
         });
     }
 }
-
-// Fix data-zone attributes on management cells
-function fixDataZoneAttributes() {
-    // Fix Operations Manager cells
-    const opManagerWrapper = document.querySelector('.flex.justify-center.mb-4');
-    if (opManagerWrapper) {
-        const opManagerZones = opManagerWrapper.querySelectorAll('.drag-zone');
-        opManagerZones.forEach((zone) => {
-            if (!zone.dataset.zone) {
-                zone.dataset.zone = 'management-operations';
-            }
-        });
-    }
-    
-    // Fix Supervisor cells
-    const supervisorWrapper = document.querySelector('.grid.grid-cols-3.gap-4');
-    if (supervisorWrapper) {
-        const supervisorZones = supervisorWrapper.querySelectorAll('.drag-zone');
-        supervisorZones.forEach((zone) => {
-            if (!zone.dataset.zone) {
-                zone.dataset.zone = 'management-supervision';
-            }
-        });
-    }
-    
-    // Fix Area Coordinator cells
-    const coordinatorWrapper = document.querySelector('.grid.grid-cols-4.gap-4.mt-4');
-    if (coordinatorWrapper) {
-        const coordinatorZones = coordinatorWrapper.querySelectorAll('.drag-zone');
-        coordinatorZones.forEach((zone) => {
-            if (!zone.dataset.zone) {
-                zone.dataset.zone = 'management-coordinator';
-            }
-        });
-    }
-}
-
-// Run the fix during initialization
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(fixDataZoneAttributes, 500);
-});
 
 // Initialize the page
 init();
