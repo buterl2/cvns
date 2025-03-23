@@ -1,5 +1,4 @@
-// Mock data for staff members
-
+// Global variables
 let staffMembers = [];
 let isLocked = false;
 const PLANNING_PASSWORD = 'CVNS2025';
@@ -9,13 +8,53 @@ const userColors = [
   '#9C27B0', '#00BCD4', '#FFEB3B', '#795548'
 ];
 
-// Initialize the page
+// Productivity rates for different zones
+const productivityRates = {
+    'long-picking': 65,
+    'long-packing': 32,
+    'long-palletizing': 120,
+    'long-vas': 20,
+    'long-aortic': 20,
+    'long-ipoint': 85,
+    'small-picking': 70,
+    'small-packing': 45,
+    'small-vas': 30,
+    'small-heart-valves': 30,
+    'surgical-picking': 70,
+    'surgical-packing': 45,
+    'surgical-vas': 30,
+    'small-ipoint': 85,
+    'surgical-ipoint': 85
+};
+
+// Initialize the page with Firebase connection
 function init() {
+    enhancedInit();
+}
+
+// Enhanced initialization with Firebase
+function enhancedInit() {
     generateUserId();
     setupFirebaseListeners();
+    setupOutputListeners();
+    setupUserActivityListeners();
+    setupSectionStateListeners();
     updateClock();
     setInterval(updateClock, 1000);
     setupModals();
+    
+    // Add listeners for change notifications
+    window.db.ref('staffMembers').on('child_added', () => {
+        showChangeNotification('New staff member added');
+    });
+    
+    window.db.ref('staffMembers').on('child_removed', () => {
+        showChangeNotification('Staff member removed');
+    });
+    
+    window.db.ref('assignments').on('child_changed', () => {
+        showChangeNotification('Assignments updated');
+    });
 }
 
 // Generate a random user ID for cursor tracking
@@ -95,9 +134,20 @@ function setupFirebaseListeners() {
         const cursors = snapshot.val() || {};
         updateCursors(cursors);
     });
+
+    // Listen for button states
+    window.db.ref('buttonStates').on('value', (snapshot) => {
+        const states = snapshot.val() || {};
+        Object.entries(states).forEach(([id, state]) => {
+            const button = document.getElementById(id);
+            if (button) {
+                button.textContent = state;
+            }
+        });
+    });
 }
 
-// Add Firebase listeners for outputs
+// Additional Firebase listeners
 function setupOutputListeners() {
     window.db.ref('outputs').on('value', (snapshot) => {
         const outputs = snapshot.val() || {};
@@ -110,7 +160,6 @@ function setupOutputListeners() {
     });
 }
 
-// Add Firebase listeners for active users
 function setupUserActivityListeners() {
     window.db.ref('users').on('value', (snapshot) => {
         const users = snapshot.val() || {};
@@ -119,7 +168,23 @@ function setupUserActivityListeners() {
     });
 }
 
-// Function to show other users' cursors (optional)
+function setupSectionStateListeners() {
+    window.db.ref('sectionStates').on('value', (snapshot) => {
+        const states = snapshot.val() || {};
+        Object.entries(states).forEach(([sectionId, isExpanded]) => {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                if (isExpanded) {
+                    section.classList.add('expanded');
+                } else {
+                    section.classList.remove('expanded');
+                }
+            }
+        });
+    });
+}
+
+// Function to show other users' cursors
 function updateCursors(cursors) {
     // Remove old cursor elements
     document.querySelectorAll('.user-cursor').forEach(el => el.remove());
@@ -137,18 +202,7 @@ function updateCursors(cursors) {
     });
 }
 
-// Show notification when changes happen
-function showChangeNotification(message) {
-    const notification = document.getElementById('changeNotification');
-    notification.textContent = message;
-    notification.classList.add('show');
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
-}
-
-// Track and broadcast cursor position (optional)
+// Track and broadcast cursor position
 document.addEventListener('mousemove', debounce((e) => {
     window.db.ref('cursors/' + currentUser.id).set({
         x: e.clientX,
@@ -167,90 +221,99 @@ function debounce(func, wait) {
     };
 }
 
-// Append staff to zone - helper function
-function appendStaffToZone(staff, zone) {
-    const staffCard = document.createElement('div');
-    staffCard.className = `staff-card ${staff.shift === 'I' ? 'bg-[#242b4e]' : 'bg-[#2f3a6c]'} p-3 rounded-lg flex items-center justify-between`;
-    staffCard.draggable = true;
-    staffCard.dataset.staffId = staff.id;
-    staffCard.innerHTML = `
-        <div class="flex items-center gap-3">
-            ${staff.photo
-                ? `<img src="${staff.photo}" class="w-11 h-11 rounded-full object-cover">`
-                : `<div class="w-11 h-11 bg-secondary rounded-full flex items-center justify-center">
-                    ${staff.name.charAt(0)}
-                  </div>`
-            }
-            <div>
-                <div class="font-medium">${staff.name}</div>
-                <div class="text-sm text-gray-400">Group ${staff.role}</div>
-            </div>
-        </div>
-        <button onclick="event.stopPropagation(); deleteStaff(${staff.id})" class="text-gray-400 hover:text-red-500">
-            <i class="ri-delete-bin-line"></i>
-        </button>
-    `;
-    zone.appendChild(staffCard);
-    staffCard.addEventListener('dragstart', handleDragStart);
-    staffCard.addEventListener('dragend', handleDragEnd);
+// Show notification when changes happen
+function showChangeNotification(message) {
+    const notification = document.getElementById('changeNotification');
+    notification.textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
 }
 
+// Setup modals and form handlers
 function setupModals() {
     document.getElementById('addSupportForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (isLocked) {
+            alert('Planning is locked. Unlock it first.');
+            return;
+        }
+        
         const name = document.getElementById('supportName').value;
         const role = document.getElementById('supportRole').value;
+        const newStaffId = Date.now(); // Use timestamp as unique ID
         const newStaff = {
-            id: staffMembers.length + 1,
+            id: newStaffId,
             name: name,
             role: role,
             photo: null,
             assigned: false
         };
-        staffMembers.push(newStaff);
-        renderStaffList();
-        setupDragAndDrop();
+        
+        // Add to Firebase
+        window.db.ref('staffMembers/' + newStaffId).set(newStaff);
+        
         hideAddSupportModal();
         this.reset();
     });
-}
 
-// Function to update staff assignment in Firebase
-function updateAssignment(staffId, zoneId) {
-    // Find and remove staff from any existing zone
-    window.db.ref('assignments').once('value', (snapshot) => {
-        const assignments = snapshot.val() || {};
+    document.getElementById('addStaffForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (isLocked) {
+            alert('Planning is locked. Unlock it first.');
+            return;
+        }
         
-        // Remove from any existing assignment
-        let updates = {};
-        Object.entries(assignments).forEach(([zone, staffIds]) => {
-            if (staffIds && staffIds.includes(staffId.toString())) {
-                const newStaffIds = staffIds.filter(id => id !== staffId.toString());
-                updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
-            }
-        });
+        const name = document.getElementById('staffName').value;
+        const role = document.getElementById('staffRole').value;
+        const shift = document.getElementById('staffShift').value;
+        const photoInput = document.getElementById('staffPhoto');
+        const photoPreview = document.getElementById('photoPreview');
         
-        // Add to new zone
-        const currentZoneStaff = (assignments[zoneId] || []).filter(id => id !== staffId.toString());
-        currentZoneStaff.push(staffId.toString());
-        updates[`assignments/${zoneId}`] = currentZoneStaff;
+        let photo = null;
+        if (photoPreview.style.backgroundImage) {
+            photo = photoPreview.style.backgroundImage.slice(5, -2);
+        }
         
-        // Update staff member status
-        updates[`staffMembers/${staffId}/assigned`] = true;
+        const newStaffId = Date.now(); // Use timestamp as unique ID
+        const newStaff = {
+            id: newStaffId,
+            name: name,
+            role: role,
+            photo: photo,
+            assigned: false,
+            shift: shift
+        };
         
-        // Apply all updates atomically
-        window.db.ref().update(updates);
+        // Add to Firebase
+        window.db.ref('staffMembers/' + newStaffId).set(newStaff);
+        
+        hideAddStaffModal();
+        this.reset();
+        photoPreview.style.backgroundImage = '';
+        photoPreview.classList.add('hidden');
+    });
+
+    // Photo upload preview
+    document.getElementById('staffPhoto').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const photoPreview = document.getElementById('photoPreview');
+                photoPreview.style.backgroundImage = `url(${e.target.result})`;
+                photoPreview.style.backgroundPosition = 'center';
+                photoPreview.style.backgroundSize = '120%';
+                photoPreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
     });
 }
 
-function showAddSupportModal() {
-    document.getElementById('addSupportModal').style.display = 'flex';
-}
-
-function hideAddSupportModal() {
-    document.getElementById('addSupportModal').style.display = 'none';
-}
-
+// Clock update function
 function updateClock() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', {
@@ -262,7 +325,7 @@ function updateClock() {
     document.getElementById('clock').textContent = timeStr;
 }
 
-// Modified toggle lock function
+// Toggle lock planning function
 function toggleLockPlanning() {
     if (isLocked) {
         const password = prompt('Enter password to unlock planning:');
@@ -276,7 +339,7 @@ function toggleLockPlanning() {
     }
 }
 
-// Modified reset board function
+// Reset board function
 function resetBoard() {
     if (isLocked) {
         alert('Planning is locked. Unlock it first.');
@@ -308,7 +371,7 @@ function renderStaffList() {
                 <div class="flex items-center gap-3" onclick="showStaffCard(${staff.id})">
                     ${staff.photo
                         ? `<img src="${staff.photo}" class="w-11 h-11 rounded-full object-cover cursor-pointer">`
-                        : `<div class="w-11 h-11 bg-secondary rounded-full flex items-center justify-center cursor-pointer" onclick="showStaffDetails(${staff.id})">
+                        : `<div class="w-11 h-11 bg-secondary rounded-full flex items-center justify-center cursor-pointer">
                             ${staff.name.charAt(0)}
                           </div>`
                     }
@@ -366,44 +429,78 @@ function handleDragLeave(e) {
     e.target.closest('.drag-zone').classList.remove('drag-over');
 }
 
-const productivityRates = {
-    'long-picking': 65,
-    'long-packing': 32,
-    'long-palletizing': 120,
-    'long-vas': 20,
-    'long-aortic': 20,
-    'long-ipoint': 85,
-    'small-picking': 70,
-    'small-packing': 45,
-    'small-vas': 30,
-    'small-heart-valves': 30,
-    'surgical-picking': 70,
-    'surgical-packing': 45,
-    'surgical-vas': 30,
-    'small-ipoint': 85,
-    'surgical-ipoint': 85
-};
-
-function toggleBcpBod(event, id) {
-    event.stopPropagation();
-    const button = document.getElementById(id);
-    const newStatus = button.textContent === 'BCP' ? 'BOD' : 'BCP';
-    button.textContent = newStatus;
+function handleDrop(e) {
+    e.preventDefault();
+    if (isLocked) {
+        alert('Planning is locked. Unlock it first.');
+        return;
+    }
     
-    // Update in Firebase
-    window.db.ref('buttonStates/' + id).set(newStatus);
+    const zone = e.target.closest('.drag-zone');
+    zone.classList.remove('drag-over');
+    const staffId = parseInt(e.dataTransfer.getData('text/plain'));
+    const staff = staffMembers.find(s => s.id === staffId);
+    if (!staff) return;
+    
+    // Update Firebase with the new assignment
+    updateAssignment(staffId, zone.dataset.zone);
 }
 
-// Add listener for button states
-window.db.ref('buttonStates').on('value', (snapshot) => {
-    const states = snapshot.val() || {};
-    Object.entries(states).forEach(([id, state]) => {
-        const button = document.getElementById(id);
-        if (button) {
-            button.textContent = state;
-        }
+// Function to update staff assignment in Firebase
+function updateAssignment(staffId, zoneId) {
+    // Find and remove staff from any existing zone
+    window.db.ref('assignments').once('value', (snapshot) => {
+        const assignments = snapshot.val() || {};
+        
+        // Remove from any existing assignment
+        let updates = {};
+        Object.entries(assignments).forEach(([zone, staffIds]) => {
+            if (staffIds && staffIds.includes(staffId.toString())) {
+                const newStaffIds = staffIds.filter(id => id !== staffId.toString());
+                updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
+            }
+        });
+        
+        // Add to new zone
+        const currentZoneStaff = (assignments[zoneId] || []).filter(id => id !== staffId.toString());
+        currentZoneStaff.push(staffId.toString());
+        updates[`assignments/${zoneId}`] = currentZoneStaff;
+        
+        // Update staff member status
+        updates[`staffMembers/${staffId}/assigned`] = true;
+        
+        // Apply all updates atomically
+        window.db.ref().update(updates);
     });
-});
+}
+
+// Append staff to zone - helper function
+function appendStaffToZone(staff, zone) {
+    const staffCard = document.createElement('div');
+    staffCard.className = `staff-card ${staff.shift === 'I' ? 'bg-[#242b4e]' : 'bg-[#2f3a6c]'} p-3 rounded-lg flex items-center justify-between`;
+    staffCard.draggable = true;
+    staffCard.dataset.staffId = staff.id;
+    staffCard.innerHTML = `
+        <div class="flex items-center gap-3">
+            ${staff.photo
+                ? `<img src="${staff.photo}" class="w-11 h-11 rounded-full object-cover">`
+                : `<div class="w-11 h-11 bg-secondary rounded-full flex items-center justify-center">
+                    ${staff.name.charAt(0)}
+                  </div>`
+            }
+            <div>
+                <div class="font-medium">${staff.name}</div>
+                <div class="text-sm text-gray-400">Group ${staff.role}</div>
+            </div>
+        </div>
+        <button onclick="event.stopPropagation(); deleteStaff(${staff.id})" class="text-gray-400 hover:text-red-500">
+            <i class="ri-delete-bin-line"></i>
+        </button>
+    `;
+    zone.appendChild(staffCard);
+    staffCard.addEventListener('dragstart', handleDragStart);
+    staffCard.addEventListener('dragend', handleDragEnd);
+}
 
 // Update productivity with Firebase
 function updateProductivity(zone) {
@@ -483,7 +580,21 @@ function getZoneOutput(zoneId) {
     return productivityRates[zoneId] * operatorCount;
 }
 
-// Toggle X4/X5 Status
+// Toggle functions for UI elements
+function toggleBcpBod(event, id) {
+    event.stopPropagation();
+    if (isLocked) {
+        alert('Planning is locked. Unlock it first.');
+        return;
+    }
+    
+    const button = document.getElementById(id);
+    const newStatus = button.textContent === 'BCP' ? 'BOD' : 'BCP';
+    
+    // Update in Firebase
+    window.db.ref('buttonStates/' + id).set(newStatus);
+}
+
 function toggleX4X5Status(event) {
     event.stopPropagation();
     if (isLocked) {
@@ -504,22 +615,18 @@ function toggleX4X5Status(event) {
     window.db.ref('buttonStates/x4x5-status').set(newStatus);
 }
 
-// Modified drag and drop handler
-function handleDrop(e) {
-    e.preventDefault();
-    if (isLocked) {
-        alert('Planning is locked. Unlock it first.');
-        return;
-    }
+// Toggle section visibility
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    section.classList.toggle('expanded');
     
-    const zone = e.target.closest('.drag-zone');
-    zone.classList.remove('drag-over');
-    const staffId = parseInt(e.dataTransfer.getData('text/plain'));
-    const staff = staffMembers.find(s => s.id === staffId);
-    if (!staff) return;
+    // Store section state in Firebase
+    window.db.ref(`sectionStates/${sectionId}`).set(section.classList.contains('expanded'));
     
-    // Update Firebase with the new assignment
-    updateAssignment(staffId, zone.dataset.zone);
+    // Re-setup drag and drop after toggling
+    setTimeout(() => {
+        setupDragAndDrop();
+    }, 300);
 }
 
 // Modal functions
@@ -531,21 +638,13 @@ function hideAddStaffModal() {
     document.getElementById('addStaffModal').style.display = 'none';
 }
 
-// Add new staff
-document.getElementById('staffPhoto').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const photoPreview = document.getElementById('photoPreview');
-            photoPreview.style.backgroundImage = `url(${e.target.result})`;
-            photoPreview.style.backgroundPosition = 'center';
-            photoPreview.style.backgroundSize = '120%';
-            photoPreview.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-    }
-});
+function showAddSupportModal() {
+    document.getElementById('addSupportModal').style.display = 'flex';
+}
+
+function hideAddSupportModal() {
+    document.getElementById('addSupportModal').style.display = 'none';
+}
 
 function selectGroup(group) {
     document.querySelectorAll('.group-button').forEach(btn => {
@@ -597,46 +696,7 @@ function hideStaffCard() {
     document.getElementById('staffCardModal').style.display = 'none';
 }
 
-// Modified add staff function
-document.getElementById('addStaffForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (isLocked) {
-        alert('Planning is locked. Unlock it first.');
-        return;
-    }
-    
-    const name = document.getElementById('staffName').value;
-    const role = document.getElementById('staffRole').value;
-    const shift = document.getElementById('staffShift').value;
-    const photoInput = document.getElementById('staffPhoto');
-    const photoPreview = document.getElementById('photoPreview');
-    
-    let photo = null;
-    if (photoPreview.style.backgroundImage) {
-        photo = photoPreview.style.backgroundImage.slice(5, -2);
-    }
-    
-    const newStaffId = Date.now(); // Use timestamp as unique ID
-    const newStaff = {
-        id: newStaffId,
-        name: name,
-        role: role,
-        photo: photo,
-        assigned: false,
-        shift: shift
-    };
-    
-    // Add to Firebase
-    window.db.ref('staffMembers/' + newStaffId).set(newStaff);
-    
-    hideAddStaffModal();
-    this.reset();
-    photoPreview.style.backgroundImage = '';
-    photoPreview.classList.add('hidden');
-});
-
-
-// Modified delete staff function
+// Delete staff
 function deleteStaff(id) {
     if (isLocked) {
         alert('Planning is locked. Unlock it first.');
@@ -664,17 +724,6 @@ function deleteStaff(id) {
             }
         });
     }
-}
-
-// Toggle sections
-function toggleSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    section.classList.toggle('expanded');
-    
-    // Re-setup drag and drop after toggling to ensure functionality
-    setTimeout(() => {
-        setupDragAndDrop();
-    }, 300); // Wait for transition to complete
 }
 
 // Initialize the page
