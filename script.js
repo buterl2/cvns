@@ -108,10 +108,7 @@ function setupFirebaseListeners() {
         
         // Repopulate zones based on Firebase data
         Object.entries(assignments).forEach(([zoneId, data]) => {
-            const zone = document.querySelector(`[data-zone="${zoneId}"]`);
-            if (!zone) return;
-            
-            // If this is a management zone with slots
+            // For management zones with slots
             if (managementZones.includes(zoneId)) {
                 // Handle slot-specific assignments
                 if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
@@ -122,11 +119,12 @@ function setupFirebaseListeners() {
                             if (staff) {
                                 staff.assigned = true;
                                 
-                                // Find the specific slot within this zone
-                                const slots = zone.parentElement.querySelectorAll(`[data-zone="${zoneId}"]`);
-                                const targetSlot = slots[parseInt(slotIndex)] || zone;
-                                
-                                appendStaffToZone(staff, targetSlot);
+                                // Find all zones with this zone ID
+                                const allZonesOfType = document.querySelectorAll(`[data-zone="${zoneId}"]`);
+                                // Get the specific slot by index
+                                if (allZonesOfType[parseInt(slotIndex)]) {
+                                    appendStaffToZone(staff, allZonesOfType[parseInt(slotIndex)]);
+                                }
                             }
                         }
                     });
@@ -138,7 +136,10 @@ function setupFirebaseListeners() {
                         const staff = staffMembers.find(s => s.id === parseInt(staffId));
                         if (staff) {
                             staff.assigned = true;
-                            appendStaffToZone(staff, zone);
+                            const zone = document.querySelector(`[data-zone="${zoneId}"]`);
+                            if (zone) {
+                                appendStaffToZone(staff, zone);
+                            }
                         }
                     });
                 }
@@ -477,16 +478,9 @@ function handleDrop(e) {
     const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
     
     if (managementZones.includes(zoneId)) {
-        // Find this specific slot's index within the zone type
-        const allSlotsOfType = document.querySelectorAll(`[data-zone="${zoneId}"]`);
-        let slotIndex = -1;
-        
-        for (let i = 0; i < allSlotsOfType.length; i++) {
-            if (allSlotsOfType[i] === zone) {
-                slotIndex = i;
-                break;
-            }
-        }
+        // Find all elements with this zone ID
+        const allZonesOfType = Array.from(document.querySelectorAll(`[data-zone="${zoneId}"]`));
+        const slotIndex = allZonesOfType.indexOf(zone);
         
         if (slotIndex !== -1) {
             // Update Firebase with the slot-specific assignment
@@ -576,14 +570,12 @@ function updateAssignment(staffId, zoneId) {
         });
         
         // Add to the new zone (for non-management zones)
-        const currentZoneStaff = (assignments[zoneId] || []).filter(id => id !== staffId.toString());
-        if (!Array.isArray(currentZoneStaff)) {
-            // If the zone previously had slot-based assignments, convert to array
-            updates[`assignments/${zoneId}`] = [staffId.toString()];
-        } else {
-            currentZoneStaff.push(staffId.toString());
-            updates[`assignments/${zoneId}`] = currentZoneStaff;
-        }
+        const currentZoneStaff = Array.isArray(assignments[zoneId]) 
+            ? assignments[zoneId].filter(id => id !== staffId.toString())
+            : [];
+            
+        currentZoneStaff.push(staffId.toString());
+        updates[`assignments/${zoneId}`] = currentZoneStaff;
         
         // Update staff member status
         updates[`staffMembers/${staffId}/assigned`] = true;
