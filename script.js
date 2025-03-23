@@ -103,17 +103,45 @@ function setupFirebaseListeners() {
             card.remove();
         });
         
+        // Define management zones with multiple slots
+        const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
+        
         // Repopulate zones based on Firebase data
-        Object.entries(assignments).forEach(([zoneId, staffIds]) => {
+        Object.entries(assignments).forEach(([zoneId, data]) => {
             const zone = document.querySelector(`[data-zone="${zoneId}"]`);
-            if (zone && staffIds) {
-                staffIds.forEach(staffId => {
-                    const staff = staffMembers.find(s => s.id === parseInt(staffId));
-                    if (staff) {
-                        staff.assigned = true;
-                        appendStaffToZone(staff, zone);
-                    }
-                });
+            if (!zone) return;
+            
+            // If this is a management zone with slots
+            if (managementZones.includes(zoneId)) {
+                // Handle slot-specific assignments
+                if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+                    // data is an object with slot keys
+                    Object.entries(data).forEach(([slotIndex, staffId]) => {
+                        if (staffId) {
+                            const staff = staffMembers.find(s => s.id === parseInt(staffId));
+                            if (staff) {
+                                staff.assigned = true;
+                                
+                                // Find the specific slot within this zone
+                                const slots = zone.parentElement.querySelectorAll(`[data-zone="${zoneId}"]`);
+                                const targetSlot = slots[parseInt(slotIndex)] || zone;
+                                
+                                appendStaffToZone(staff, targetSlot);
+                            }
+                        }
+                    });
+                }
+            } else {
+                // For regular zones (non-management), handle as before
+                if (Array.isArray(data)) {
+                    data.forEach(staffId => {
+                        const staff = staffMembers.find(s => s.id === parseInt(staffId));
+                        if (staff) {
+                            staff.assigned = true;
+                            appendStaffToZone(staff, zone);
+                        }
+                    });
+                }
             }
         });
         
@@ -442,29 +470,120 @@ function handleDrop(e) {
     const staff = staffMembers.find(s => s.id === staffId);
     if (!staff) return;
     
-    // Update Firebase with the new assignment
-    updateAssignment(staffId, zone.dataset.zone);
+    // Get the zone ID
+    const zoneId = zone.dataset.zone;
+    
+    // For management zones, determine the specific slot index
+    const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
+    
+    if (managementZones.includes(zoneId)) {
+        // Find this specific slot's index within the zone type
+        const allSlotsOfType = document.querySelectorAll(`[data-zone="${zoneId}"]`);
+        let slotIndex = -1;
+        
+        for (let i = 0; i < allSlotsOfType.length; i++) {
+            if (allSlotsOfType[i] === zone) {
+                slotIndex = i;
+                break;
+            }
+        }
+        
+        if (slotIndex !== -1) {
+            // Update Firebase with the slot-specific assignment
+            updateSlotAssignment(staffId, zoneId, slotIndex);
+        }
+    } else {
+        // For regular zones, update as before
+        updateAssignment(staffId, zoneId);
+    }
+}
+
+// Function to update slot-specific assignments
+function updateSlotAssignment(staffId, zoneId, slotIndex) {
+    // First, remove this staff from any existing assignment
+    window.db.ref('assignments').once('value', (snapshot) => {
+        const assignments = snapshot.val() || {};
+        
+        // Create updates object
+        let updates = {};
+        
+        // Handle removal from management zones (slot-based)
+        const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
+        
+        managementZones.forEach(zone => {
+            const zoneData = assignments[zone];
+            if (zoneData && typeof zoneData === 'object' && !Array.isArray(zoneData)) {
+                Object.entries(zoneData).forEach(([slot, id]) => {
+                    if (id === staffId.toString()) {
+                        updates[`assignments/${zone}/${slot}`] = null;
+                    }
+                });
+            }
+        });
+        
+        // Handle removal from regular zones (array-based)
+        Object.entries(assignments).forEach(([zone, data]) => {
+            if (!managementZones.includes(zone) && Array.isArray(data)) {
+                if (data && data.includes(staffId.toString())) {
+                    const newStaffIds = data.filter(id => id !== staffId.toString());
+                    updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
+                }
+            }
+        });
+        
+        // Add to the new specific slot
+        updates[`assignments/${zoneId}/${slotIndex}`] = staffId.toString();
+        
+        // Update staff member status
+        updates[`staffMembers/${staffId}/assigned`] = true;
+        
+        // Apply all updates atomically
+        window.db.ref().update(updates);
+    });
 }
 
 // Function to update staff assignment in Firebase
 function updateAssignment(staffId, zoneId) {
-    // Find and remove staff from any existing zone
+    // First, remove this staff from any existing assignment
     window.db.ref('assignments').once('value', (snapshot) => {
         const assignments = snapshot.val() || {};
         
-        // Remove from any existing assignment
+        // Create updates object
         let updates = {};
-        Object.entries(assignments).forEach(([zone, staffIds]) => {
-            if (staffIds && staffIds.includes(staffId.toString())) {
-                const newStaffIds = staffIds.filter(id => id !== staffId.toString());
-                updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
+        
+        // Handle removal from management zones (slot-based)
+        const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
+        
+        managementZones.forEach(zone => {
+            const zoneData = assignments[zone];
+            if (zoneData && typeof zoneData === 'object' && !Array.isArray(zoneData)) {
+                Object.entries(zoneData).forEach(([slot, id]) => {
+                    if (id === staffId.toString()) {
+                        updates[`assignments/${zone}/${slot}`] = null;
+                    }
+                });
             }
         });
         
-        // Add to new zone
+        // Handle removal from regular zones (array-based)
+        Object.entries(assignments).forEach(([zone, data]) => {
+            if (!managementZones.includes(zone) && Array.isArray(data)) {
+                if (data && data.includes(staffId.toString())) {
+                    const newStaffIds = data.filter(id => id !== staffId.toString());
+                    updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
+                }
+            }
+        });
+        
+        // Add to the new zone (for non-management zones)
         const currentZoneStaff = (assignments[zoneId] || []).filter(id => id !== staffId.toString());
-        currentZoneStaff.push(staffId.toString());
-        updates[`assignments/${zoneId}`] = currentZoneStaff;
+        if (!Array.isArray(currentZoneStaff)) {
+            // If the zone previously had slot-based assignments, convert to array
+            updates[`assignments/${zoneId}`] = [staffId.toString()];
+        } else {
+            currentZoneStaff.push(staffId.toString());
+            updates[`assignments/${zoneId}`] = currentZoneStaff;
+        }
         
         // Update staff member status
         updates[`staffMembers/${staffId}/assigned`] = true;
@@ -711,11 +830,23 @@ function deleteStaff(id) {
         window.db.ref('assignments').once('value', (snapshot) => {
             const assignments = snapshot.val() || {};
             let updates = {};
+            const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
             
-            Object.entries(assignments).forEach(([zone, staffIds]) => {
-                if (staffIds && staffIds.includes(id.toString())) {
-                    const newStaffIds = staffIds.filter(staffId => staffId !== id.toString());
-                    updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
+            // Handle both data structures
+            Object.entries(assignments).forEach(([zone, data]) => {
+                if (managementZones.includes(zone) && typeof data === 'object' && !Array.isArray(data)) {
+                    // Slot-based assignments
+                    Object.entries(data).forEach(([slot, staffId]) => {
+                        if (staffId === id.toString()) {
+                            updates[`assignments/${zone}/${slot}`] = null;
+                        }
+                    });
+                } else if (Array.isArray(data)) {
+                    // Regular array-based assignments
+                    if (data && data.includes(id.toString())) {
+                        const newStaffIds = data.filter(staffId => staffId !== id.toString());
+                        updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
+                    }
                 }
             });
             
