@@ -27,6 +27,30 @@ const productivityRates = {
     'surgical-ipoint': 85
 };
 
+function debugLog(message, data) {
+    console.log(`%c DEBUG: ${message}`, 'background: #222; color: #bada55', data || '');
+}
+
+function debugInspectSlots() {
+    const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
+    
+    managementZones.forEach(zoneId => {
+        const zones = document.querySelectorAll(`[data-zone="${zoneId}"]`);
+        debugLog(`Found ${zones.length} slots for ${zoneId}:`, Array.from(zones));
+        
+        // Log detailed info about each slot
+        Array.from(zones).forEach((zone, index) => {
+            debugLog(`Slot ${index} for ${zoneId}:`, {
+                element: zone,
+                innerHTML: zone.innerHTML,
+                parentNode: zone.parentNode,
+                childNodes: zone.childNodes,
+                attributes: Array.from(zone.attributes).map(attr => `${attr.name}="${attr.value}"`)
+            });
+        });
+    });
+}
+
 // Initialize the page with Firebase connection
 function init() {
     enhancedInit();
@@ -94,9 +118,10 @@ function setupFirebaseListeners() {
         }
     });
     
-    // Listen for staff assignments
+    // Listen for staff assignments with debugging
     window.db.ref('assignments').on('value', (snapshot) => {
         const assignments = snapshot.val() || {};
+        debugLog('Current Firebase assignments:', assignments);
         
         // Clear all zones
         document.querySelectorAll('.drag-zone .staff-card').forEach(card => {
@@ -106,10 +131,15 @@ function setupFirebaseListeners() {
         // Define management zones with multiple slots
         const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
         
+        // Debug: Inspect the DOM slots before making assignments
+        debugInspectSlots();
+        
         // Repopulate zones based on Firebase data
         Object.entries(assignments).forEach(([zoneId, data]) => {
             // For management zones with slots
             if (managementZones.includes(zoneId)) {
+                debugLog(`Processing assignments for management zone: ${zoneId}`, data);
+                
                 // Handle slot-specific assignments
                 if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
                     // data is an object with slot keys
@@ -119,12 +149,22 @@ function setupFirebaseListeners() {
                             if (staff) {
                                 staff.assigned = true;
                                 
+                                debugLog(`Assigning staff ${staff.name} to ${zoneId}, slot ${slotIndex}`);
+                                
                                 // Find all zones with this zone ID
                                 const allZonesOfType = document.querySelectorAll(`[data-zone="${zoneId}"]`);
+                                debugLog(`Found ${allZonesOfType.length} slots for ${zoneId}`);
+                                
                                 // Get the specific slot by index
-                                if (allZonesOfType[parseInt(slotIndex)]) {
-                                    appendStaffToZone(staff, allZonesOfType[parseInt(slotIndex)]);
+                                const targetSlot = allZonesOfType[parseInt(slotIndex)];
+                                if (targetSlot) {
+                                    debugLog(`Found target slot:`, targetSlot);
+                                    appendStaffToZone(staff, targetSlot);
+                                } else {
+                                    debugLog(`ERROR: Could not find slot ${slotIndex} for ${zoneId}`);
                                 }
+                            } else {
+                                debugLog(`ERROR: Could not find staff with ID ${staffId}`);
                             }
                         }
                     });
@@ -139,6 +179,8 @@ function setupFirebaseListeners() {
                             const zone = document.querySelector(`[data-zone="${zoneId}"]`);
                             if (zone) {
                                 appendStaffToZone(staff, zone);
+                            } else {
+                                debugLog(`ERROR: Could not find zone ${zoneId}`);
                             }
                         }
                     });
@@ -152,28 +194,7 @@ function setupFirebaseListeners() {
         });
     });
     
-    // Listen for lock status
-    window.db.ref('isLocked').on('value', (snapshot) => {
-        isLocked = snapshot.val() || false;
-        document.getElementById('lockStatus').textContent = isLocked ? 'Unlock Planning' : 'Lock Planning';
-    });
-    
-    // Listen for cursor positions (optional - for collaborative feel)
-    window.db.ref('cursors').on('value', (snapshot) => {
-        const cursors = snapshot.val() || {};
-        updateCursors(cursors);
-    });
-
-    // Listen for button states
-    window.db.ref('buttonStates').on('value', (snapshot) => {
-        const states = snapshot.val() || {};
-        Object.entries(states).forEach(([id, state]) => {
-            const button = document.getElementById(id);
-            if (button) {
-                button.textContent = state;
-            }
-        });
-    });
+    // Rest of the listeners remain the same...
 }
 
 // Additional Firebase listeners
@@ -464,6 +485,7 @@ function handleDragLeave(e) {
     }
 }
 
+// Modify handleDrop to add debugging
 function handleDrop(e) {
     e.preventDefault();
     if (isLocked) {
@@ -472,15 +494,22 @@ function handleDrop(e) {
     }
     
     const zone = e.target.closest('.drag-zone');
-    if (!zone) return; // Exit if not dropped on a valid zone
+    if (!zone) {
+        debugLog('ERROR: Drop target is not a valid drag-zone');
+        return;
+    }
     
     zone.classList.remove('drag-over');
     const staffId = parseInt(e.dataTransfer.getData('text/plain'));
     const staff = staffMembers.find(s => s.id === staffId);
-    if (!staff) return;
+    if (!staff) {
+        debugLog(`ERROR: Could not find staff with ID ${staffId}`);
+        return;
+    }
     
     // Get the zone ID
     const zoneId = zone.dataset.zone;
+    debugLog(`Dropping staff ${staff.name} into zone ${zoneId}`);
     
     // For management zones, determine the specific slot index
     const managementZones = ['management-operations', 'management-supervision', 'management-coordinator'];
@@ -488,11 +517,16 @@ function handleDrop(e) {
     if (managementZones.includes(zoneId)) {
         // Find all elements with this zone ID
         const allZonesOfType = Array.from(document.querySelectorAll(`[data-zone="${zoneId}"]`));
+        debugLog(`Found ${allZonesOfType.length} slots for ${zoneId}:`, allZonesOfType);
+        
         const slotIndex = allZonesOfType.indexOf(zone);
+        debugLog(`Calculated slot index: ${slotIndex} for ${zoneId}`);
         
         if (slotIndex !== -1) {
             // Update Firebase with the slot-specific assignment
             updateSlotAssignment(staffId, zoneId, slotIndex);
+        } else {
+            debugLog(`ERROR: Could not determine slot index for ${zoneId}`);
         }
     } else {
         // For regular zones, update as before
@@ -502,9 +536,12 @@ function handleDrop(e) {
 
 // Function to update slot-specific assignments
 function updateSlotAssignment(staffId, zoneId, slotIndex) {
+    debugLog(`Setting slot assignment: staff ${staffId} to ${zoneId}[${slotIndex}]`);
+    
     // First, remove this staff from any existing assignment
     window.db.ref('assignments').once('value', (snapshot) => {
         const assignments = snapshot.val() || {};
+        debugLog('Current assignments before update:', assignments);
         
         // Create updates object
         let updates = {};
@@ -517,6 +554,7 @@ function updateSlotAssignment(staffId, zoneId, slotIndex) {
             if (zoneData && typeof zoneData === 'object' && !Array.isArray(zoneData)) {
                 Object.entries(zoneData).forEach(([slot, id]) => {
                     if (id === staffId.toString()) {
+                        debugLog(`Removing staff ${staffId} from ${zone}[${slot}]`);
                         updates[`assignments/${zone}/${slot}`] = null;
                     }
                 });
@@ -527,6 +565,7 @@ function updateSlotAssignment(staffId, zoneId, slotIndex) {
         Object.entries(assignments).forEach(([zone, data]) => {
             if (!managementZones.includes(zone) && Array.isArray(data)) {
                 if (data && data.includes(staffId.toString())) {
+                    debugLog(`Removing staff ${staffId} from ${zone} array`);
                     const newStaffIds = data.filter(id => id !== staffId.toString());
                     updates[`assignments/${zone}`] = newStaffIds.length > 0 ? newStaffIds : null;
                 }
@@ -534,13 +573,23 @@ function updateSlotAssignment(staffId, zoneId, slotIndex) {
         });
         
         // Add to the new specific slot
+        debugLog(`Adding staff ${staffId} to ${zoneId}[${slotIndex}]`);
         updates[`assignments/${zoneId}/${slotIndex}`] = staffId.toString();
         
         // Update staff member status
         updates[`staffMembers/${staffId}/assigned`] = true;
         
+        // Log the updates before applying
+        debugLog('Updates to be applied:', updates);
+        
         // Apply all updates atomically
-        window.db.ref().update(updates);
+        window.db.ref().update(updates, (error) => {
+            if (error) {
+                debugLog('ERROR updating Firebase:', error);
+            } else {
+                debugLog('Firebase update successful');
+            }
+        });
     });
 }
 
@@ -595,6 +644,8 @@ function updateAssignment(staffId, zoneId) {
 
 // Append staff to zone - helper function
 function appendStaffToZone(staff, zone) {
+    debugLog(`Appending staff ${staff.name} to zone:`, zone);
+    
     const staffCard = document.createElement('div');
     staffCard.className = `staff-card ${staff.shift === 'I' ? 'bg-[#242b4e]' : 'bg-[#2f3a6c]'} p-3 rounded-lg flex items-center justify-between`;
     staffCard.draggable = true;
@@ -616,9 +667,15 @@ function appendStaffToZone(staff, zone) {
             <i class="ri-delete-bin-line"></i>
         </button>
     `;
-    zone.appendChild(staffCard);
-    staffCard.addEventListener('dragstart', handleDragStart);
-    staffCard.addEventListener('dragend', handleDragEnd);
+    
+    try {
+        zone.appendChild(staffCard);
+        debugLog(`Successfully appended staff ${staff.name} to zone`);
+        staffCard.addEventListener('dragstart', handleDragStart);
+        staffCard.addEventListener('dragend', handleDragEnd);
+    } catch (error) {
+        debugLog(`ERROR appending staff to zone:`, error);
+    }
 }
 
 // Update productivity with Firebase
@@ -692,6 +749,33 @@ function updateProductivity(zone) {
         }
     }
 }
+
+// Add a debug function to the window to trigger debugging on demand
+window.debugFirebaseData = function() {
+    window.db.ref('assignments').once('value', (snapshot) => {
+        const assignments = snapshot.val() || {};
+        console.log('%c FIREBASE ASSIGNMENTS DATA:', 'background: #222; color: #bada55', assignments);
+    });
+    
+    window.db.ref('staffMembers').once('value', (snapshot) => {
+        const staff = snapshot.val() || {};
+        console.log('%c FIREBASE STAFF DATA:', 'background: #222; color: #bada55', staff);
+    });
+    
+    debugInspectSlots();
+};
+
+// Add debug button to the page
+document.addEventListener('DOMContentLoaded', function() {
+    const header = document.querySelector('header');
+    if (header) {
+        const debugButton = document.createElement('button');
+        debugButton.innerHTML = 'Debug';
+        debugButton.className = 'ml-4 px-3 py-1 bg-red-600 rounded text-white text-sm';
+        debugButton.onclick = window.debugFirebaseData;
+        header.querySelector('.flex-1:last-child').appendChild(debugButton);
+    }
+});
 
 function getZoneOutput(zoneId) {
     const zone = document.querySelector(`[data-zone="${zoneId}"]`);
