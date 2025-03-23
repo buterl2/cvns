@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+<title>Planning Board</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+<link rel="stylesheet" href="styles.css">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#1a1f37',
+        secondary: '#2563eb'
+      },
+      borderRadius: {
+        'none': '0px',
+        'sm': '4px',
+        DEFAULT: '8px',
+        'md': '12px',
+        'lg': '16px',
+        'xl': '20px',
+        '2xl': '24px',
+        '3xl': '32px',
+        'full': '9999px',
+        'button': '8px'
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="bg-primary min-h-screen text-white">
+<div class="container mx-auto p-6 min-w-[1024px] max-w-[90vw]">
+  <header class="flex items-center justify-between mb-8">
+    <div class="flex-1">
+      <img src="https://static.readdy.ai/image/01cdd919ceccc16231ef3b3916318cad/484d90531039776bd74ffc4ba647a153.png" alt="Logo" class="h-12">
+    </div>
+    <h1 class="text-[2.3rem] font-bold text-center flex-1">CV / NS Planning Board</h1>
+    <div class="flex items-center gap-4 flex-1 justify-end">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+        <span class="text-sm text-gray-400">Live Updates</span>
+      </div>
+      <div id="clock" class="text-xl font-mono"></div>
+    </div>
+  </header>
+  <div class="flex gap-8 flex-wrap">
+    <!-- Staff Management Sidebar -->
+    <div class="w-72 flex-shrink-0 min-w-[288px]">
+      <div class="bg-[#1e2444] rounded-lg p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold">Available Operators</h2>
+          <div class="flex gap-2">
+            <button onclick="showAddStaffModal()" class="w-8 h-8 flex items-center justify-center bg-secondary rounded-button">
+              <i class="ri-add-line"></i>
+            </button>
+            <button onclick="showAddSupportModal()" class="w-8 h-8 flex items-center justify-center bg-secondary rounded-button">
+              <i class="ri-user-add-line"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <button onclick="resetBoard()" class="flex-1 h-8 flex items-center justify-center bg-secondary rounded-button text-sm">
+            <i class="ri-refresh-line mr-1"></i> Reset Board
+          </button>
+          <button onclick="toggleLockPlanning()" class="flex-1 h-8 flex items-center justify-center bg-secondary rounded-button text-sm">
+            <i class="ri-lock-line mr-1"></i> <span id="lockStatus">Lock Planning</span>
+          </button>
+        </div>
+        <div id="staffList" class="space-y-2">
+          <!-- Staff cards will be dynamically inserted here -->
+        </div>
+        <div class="mt-8 space-y-6">
+          <div class="text-center">
+            <h3 class="text-lg font-semibold mb-4">Morning shift - Schedule</h3>
+            <div class="space-y-2">
+              <div class="text-sm text-gray-400">Group I / Group II</div>
+              <div>Break 8:45 - 09:00 / 9:00 - 09:15</div>
+              <div class="text-secondary font-medium my-2">Kick off 10:30</div>
+              <div>Break 10:45 - 11:15 / 11:15 - 11:45</div>
+              <div>Break 13:15 - 13:30 / 13:30 - 13:45</div>
+            </div>
+          </div>
+          <div class="text-center">
+            <h3 class="text-lg font-semibold mb-4">Late shift - Schedule</h3>
+            <div class="space-y-2">
+              <div class="text-sm text-gray-400">Group I / Group II</div>
+              <div class="text-secondary font-medium mb-2">Kick off - 15:00</div>
+              <div>Break 16:45 - 07:00 / 17:00 - 17:15</div>
+              <div>Break 18:45 - 19:15 / 19:15 - 19:45</div>
+              <div>Break 21:15 - 21:30 / 21:30 - 21:45</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Planning Board -->
+    <div class="flex-1 space-y-8 min-w-[640px]">
+      <!-- Management Section -->
+      <div>
+        <div onclick="toggleSection('management')" class="flex items-center justify-between bg-[#1e2444] p-4 rounded-lg cursor-pointer">
+          <h2 class="text-lg font-semibold text-blue-400">Management</h2>
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+        <div id="management" class="section-content expanded mt-4 space-y-4">
+          <div class="space-y-4">
+            <div class="flex justify-center mb-4">
+              <div class="drag-zone w-1/3" data-zone="management-operations">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Operations Manager</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="drag-zone" data-zone="management-supervision">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Supervisor</div>
+              </div>
+              <div class="drag-zone" data-zone="management-supervision">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Supervisor</div>
+              </div>
+              <div class="drag-zone" data-zone="management-supervision">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Supervisor</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-4 gap-4 mt-4">
+              <div class="drag-zone" data-zone="management-coordinator">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Area Coordinator</div>
+              </div>
+              <div class="drag-zone" data-zone="management-coordinator">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Area Coordinator</div>
+              </div>
+              <div class="drag-zone" data-zone="management-coordinator">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Area Coordinator</div>
+              </div>
+              <div class="drag-zone" data-zone="management-coordinator">
+                <div class="p-3 bg-[#1e2444] rounded-t-lg">Area Coordinator</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Surgical Tech Section -->
+      <div>
+        <div onclick="toggleSection('surgicalTech')" class="flex items-center justify-between bg-[#1e2444] p-4 rounded-lg cursor-pointer">
+          <h2 class="text-lg font-semibold">Surgical Tech</h2>
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+        <div id="surgicalTech" class="section-content expanded mt-4 space-y-4">
+          <div class="grid grid-cols-3 gap-4">
+            <div class="drag-zone" data-zone="surgical-picking">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Picking</span>
+                <span class="text-sm text-gray-400" id="surgical-picking-output">0 lines/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="surgical-ipoint">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>I-Point</span>
+                <button onclick="toggleBcpBod(event, 'surgical-ipoint-status')" class="px-2 py-1 bg-secondary rounded-button text-sm" id="surgical-ipoint-status">BCP</button>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="surgical-packing">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Packing</span>
+                <span class="text-sm text-gray-400" id="surgical-packing-output">0 boxes/h</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="drag-zone" data-zone="surgical-vas">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>VAS / HAZMAT</span>
+                <span class="text-sm text-gray-400" id="surgical-vas-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="surgical-pallet-picking">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Pallet Picking</div>
+            </div>
+            <div class="drag-zone" data-zone="surgical-training">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg"><span>Training</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Small Goods Section -->
+      <div>
+        <div onclick="toggleSection('smallGoods')" class="flex items-center justify-between bg-[#1e2444] p-4 rounded-lg cursor-pointer">
+          <h2 class="text-lg font-semibold">Small Goods</h2>
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+        <div id="smallGoods" class="section-content expanded mt-4 space-y-4">
+          <div class="grid grid-cols-3 gap-4">
+            <div class="drag-zone" data-zone="small-picking">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Picking</span>
+                <span class="text-sm text-gray-400" id="small-picking-output">0 lines/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="small-ipoint">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>I-Point</span>
+                <button onclick="toggleBcpBod(event, 'small-ipoint-status')" class="px-2 py-1 bg-secondary rounded-button text-sm" id="small-ipoint-status">BCP</button>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="small-packing">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Packing</span>
+                <span class="text-sm text-gray-400" id="small-packing-output">0 boxes/h</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="drag-zone" data-zone="small-vas">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>VAS / HAZMAT</span>
+                <span class="text-sm text-gray-400" id="small-vas-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="small-heart-valves">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Heart Valves</span>
+                <span class="text-sm text-gray-400" id="small-heart-valves-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="small-training">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg"><span>Training</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Long Goods Section -->
+      <div>
+        <div onclick="toggleSection('longGoods')" class="flex items-center justify-between bg-[#1e2444] p-4 rounded-lg cursor-pointer">
+          <h2 class="text-lg font-semibold">Long Goods</h2>
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+        <div id="longGoods" class="section-content expanded mt-4 space-y-4">
+          <div class="grid grid-cols-4 gap-4">
+            <div class="drag-zone" data-zone="long-picking">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Picking</span>
+                <span class="text-sm text-gray-400" id="long-picking-output">0 lines/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="long-ipoint">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>I-Point</span>
+                <span class="text-sm text-gray-400" id="long-ipoint-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="long-packing">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Packing</span>
+                <span class="text-sm text-gray-400" id="long-packing-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="long-palletizing">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Palletizing</span>
+                <span class="text-sm text-gray-400" id="long-palletizing-output">0 boxes/h</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="drag-zone" data-zone="long-vas">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>VAS / HAZMAT</span>
+                <span class="text-sm text-gray-400" id="long-vas-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="long-aortic">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>Aortic</span>
+                <span class="text-sm text-gray-400" id="long-aortic-output">0 boxes/h</span>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="long-training">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg"><span>Training</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Support Competences Section -->
+      <div>
+        <div onclick="toggleSection('supportComp')" class="flex items-center justify-between bg-[#1e2444] p-4 rounded-lg cursor-pointer">
+          <h2 class="text-lg font-semibold">Support Competences</h2>
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+        <div id="supportComp" class="section-content expanded mt-4 space-y-4">
+          <div class="grid grid-cols-4 gap-4">
+            <div class="drag-zone" data-zone="support-x4x5">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg flex justify-between items-center">
+                <span>X4 / X5</span>
+                <button onclick="toggleX4X5Status(event)" class="px-2 py-1 bg-secondary rounded-button text-sm" id="x4x5-status">A</button>
+              </div>
+            </div>
+            <div class="drag-zone" data-zone="support-em7">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">EM7 / BCP</div>
+            </div>
+            <div class="drag-zone" data-zone="support-consolidation">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Consolidation</div>
+            </div>
+            <div class="drag-zone" data-zone="support-check">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">100% Check</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-4">
+            <div class="drag-zone" data-zone="support-maintenance">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Maintenance</div>
+            </div>
+            <div class="drag-zone" data-zone="support-waterspider">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Waterspider</div>
+            </div>
+            <div class="drag-zone" data-zone="support-structural">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Structural Heart</div>
+            </div>
+            <div class="drag-zone" data-zone="support-lean">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Lean</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Others Section -->
+      <div>
+        <div onclick="toggleSection('others')" class="flex items-center justify-between bg-[#1e2444] p-4 rounded-lg cursor-pointer">
+          <h2 class="text-lg font-semibold text-orange-500">Others</h2>
+          <i class="ri-arrow-down-s-line"></i>
+        </div>
+        <div id="others" class="section-content expanded mt-4">
+          <div class="grid grid-cols-3 gap-4">
+            <div class="drag-zone" data-zone="others-holiday">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Holiday</div>
+            </div>
+            <div class="drag-zone" data-zone="others-sick">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Sick</div>
+            </div>
+            <div class="drag-zone" data-zone="others-support">
+              <div class="p-3 bg-[#1e2444] rounded-t-lg">Support</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Support Modal -->
+<div id="addSupportModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+  <div class="bg-[#1e2444] p-6 rounded-lg w-96">
+    <h3 class="text-xl font-semibold mb-4">Add New Support</h3>
+    <form id="addSupportForm" class="space-y-4">
+      <div>
+        <label class="block mb-2">Name</label>
+        <input type="text" id="supportName" class="w-full p-2 rounded-button bg-primary border-none" required>
+      </div>
+      <div>
+        <label class="block mb-2">Role</label>
+        <input type="text" id="supportRole" class="w-full p-2 rounded-button bg-primary border-none" value="Support" required>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="hideAddSupportModal()" class="px-4 py-2 rounded-button bg-gray-600">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-button bg-secondary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Staff Modal -->
+<div id="addStaffModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+  <div class="bg-[#1e2444] p-6 rounded-lg w-96">
+    <h3 class="text-xl font-semibold mb-4">Add New Staff</h3>
+    <form id="addStaffForm" class="space-y-4">
+      <div>
+        <label class="block mb-2">Name</label>
+        <input type="text" id="staffName" class="w-full p-2 rounded-button bg-primary border-none" required>
+      </div>
+      <div>
+        <label class="block mb-2">Group</label>
+        <div class="flex gap-2">
+          <button type="button" onclick="selectGroup('I')" class="flex-1 p-2 rounded-button bg-primary border-2 border-transparent hover:border-secondary group-button" data-group="I">I</button>
+          <button type="button" onclick="selectGroup('II')" class="flex-1 p-2 rounded-button bg-primary border-2 border-transparent hover:border-secondary group-button" data-group="II">II</button>
+          <button type="button" onclick="selectGroup('X')" class="flex-1 p-2 rounded-button bg-primary border-2 border-transparent hover:border-secondary group-button" data-group="X">X</button>
+        </div>
+        <input type="hidden" id="staffRole" value="1" required>
+      </div>
+      <div>
+        <label class="block mb-2">Shift</label>
+        <div class="flex gap-2">
+          <button type="button" onclick="selectShift('I')" class="flex-1 p-2 rounded-button bg-primary border-2 border-transparent hover:border-secondary shift-button" data-shift="I">Shift I</button>
+          <button type="button" onclick="selectShift('II')" class="flex-1 p-2 rounded-button bg-primary border-2 border-transparent hover:border-secondary shift-button" data-shift="II">Shift II</button>
+        </div>
+        <input type="hidden" id="staffShift" value="I" required>
+      </div>
+      <div>
+        <label class="block mb-2">Photo</label>
+        <input type="file" id="staffPhoto" accept="image/*" class="w-full p-2 rounded-button bg-primary border-none">
+        <div id="photoPreview" class="mt-2 w-20 h-20 rounded-full bg-gray-700 hidden bg-center bg-cover"></div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="hideAddStaffModal()" class="px-4 py-2 rounded-button bg-gray-600">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-button bg-secondary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Staff Card Modal -->
+<div id="staffCardModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+  <div class="bg-[#1e2444] p-6 rounded-lg relative">
+    <button onclick="hideStaffCard()" class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white">
+      <i class="ri-close-line text-xl"></i>
+    </button>
+    <div class="text-center">
+      <div id="staffCardPhoto" class="w-48 h-48 rounded-full mx-auto mb-4 bg-secondary flex items-center justify-center text-5xl"></div>
+      <h3 id="staffCardName" class="text-xl font-semibold mb-2"></h3>
+      <div id="staffCardDetails" class="text-gray-400"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Activity indicator that shows who's online -->
+<div class="activity-indicator">
+    <div class="activity-dot bg-green-500"></div>
+    <span id="activeUsers">0 users online</span>
+</div>
+
+<!-- Notification element for changes -->
+<div id="changeNotification" class="change-notification">
+    Someone made a change
+</div>
+
+<!-- Firebase scripts -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+<!-- Config file that initializes Firebase -->
+<script src="firebase-config.js"></script>
+
+<!-- Keep your original script at the end -->
+<script src="script.js"></script>
+</body>
+</html>

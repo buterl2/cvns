@@ -1,0 +1,107 @@
+:where([class^="ri-"])::before { 
+    content: "\f3c2"; 
+}
+
+.drag-zone {
+    min-height: 120px;
+    border: 2px dashed rgba(255,255,255,0.2);
+    transition: all 0.3s;
+}
+
+[data-zone^="management-"] {
+    min-height: 80px;
+}
+
+[data-zone^="management-"] .staff-card {
+    margin: 4px;
+}
+
+.drag-zone.drag-over {
+    border-color: #2563eb;
+    background: rgba(37,99,235,0.1);
+}
+
+.dragging {
+    opacity: 1;
+}
+
+.staff-card {
+    cursor: move;
+}
+
+.section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease-out;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.section-content.expanded {
+    max-height: 1000px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.user-cursor {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes highlight-change {
+    0% { box-shadow: 0 0 0 2px rgba(37, 99, 235, 0); }
+    50% { box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.8); }
+    100% { box-shadow: 0 0 0 2px rgba(37, 99, 235, 0); }
+}
+
+.highlight-change {
+    animation: highlight-change 1s ease-in-out;
+}
+
+/* Activity indicator */
+.activity-indicator {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background-color: rgba(30, 36, 68, 0.8);
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    z-index: 1000;
+    font-size: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.activity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+/* Add a notification style for changes */
+.change-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background-color: rgba(30, 36, 68, 0.9);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.3s, transform 0.3s;
+    transform: translateY(20px);
+    opacity: 0;
+}
+
+.change-notification.show {
+    transform: translateY(0);
+    opacity: 1;
+}
