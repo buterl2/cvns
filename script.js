@@ -451,11 +451,17 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    e.target.closest('.drag-zone').classList.add('drag-over');
+    const zone = e.target.closest('.drag-zone');
+    if (zone) {
+        zone.classList.add('drag-over');
+    }
 }
 
 function handleDragLeave(e) {
-    e.target.closest('.drag-zone').classList.remove('drag-over');
+    const zone = e.target.closest('.drag-zone');
+    if (zone) {
+        zone.classList.remove('drag-over');
+    }
 }
 
 function handleDrop(e) {
@@ -466,6 +472,8 @@ function handleDrop(e) {
     }
     
     const zone = e.target.closest('.drag-zone');
+    if (!zone) return; // Exit if not dropped on a valid zone
+    
     zone.classList.remove('drag-over');
     const staffId = parseInt(e.dataTransfer.getData('text/plain'));
     const staff = staffMembers.find(s => s.id === staffId);
